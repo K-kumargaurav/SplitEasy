@@ -15,6 +15,10 @@ app.get("/", (req, res) => {
     res.json({ message : "SplitEasy API is running" });
 })
 
+// Routes
+const authRoutes = require("./routes/authRoutes");
+app.use("/api/auth", authRoutes);
+
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI)
     .then(() => {
