@@ -14,4 +14,8 @@ router.get("/:id", protect, getGroupById);
 router.post("/:id/expenses", protect, addExpense);
 router.get("/:id/expenses", protect, getGroupExpenses);
 
+// nested settlement routes
+const settlementRoutes = require('./settlementRoutes');
+router.use('/:id', settlementRoutes);
+
 module.exports = router;

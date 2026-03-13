@@ -19,9 +19,11 @@ app.get("/", (req, res) => {
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
 const groupRoutes = require("./routes/groupRoutes");
+const settlementRoutes = require("./routes/settlementRoutes");
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/groups", groupRoutes);
+app.use("/api/groups", settlementRoutes);
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI)
