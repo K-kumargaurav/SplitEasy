@@ -10,7 +10,7 @@ const createGroup = async(req, res) => {
             name, 
             description,
             createdBy: req.user._id,
-            members: [...new Set([req.user._id, ...(members || [])])] //creator is always a member
+            members: [...new Set([req.user._id.toString(), ...(members || [])])] //creator is always a member
         });
 
         await group.populate("members", "name email");
@@ -157,6 +157,105 @@ const getGroupExpenses = async(req, res) => {
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });
     }
-}
+};
 
-module.exports = { createGroup, getGroups, getGroupById, addExpense, getGroupExpenses };
+// @POST /api/groups/:id/invite
+const sendInvite = async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const group = await Group.findById(req.params.id);
+
+    if (!group) {
+      return res.status(404).json({ message: 'Group not found' });
+    }
+
+    // Only creator can send invites
+    if (group.createdBy.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Only group creator can send invites' });
+    }
+
+    // Check if already a member
+    if (group.members.includes(userId)) {
+      return res.status(400).json({ message: 'User is already a member' });
+    }
+
+    // Check if invite already sent
+    const alreadyInvited = group.invites.find(
+      i => i.user.toString() === userId && i.status === 'pending'
+    );
+    if (alreadyInvited) {
+      return res.status(400).json({ message: 'Invite already sent' });
+    }
+
+    group.invites.push({ user: userId });
+    await group.save();
+
+    res.json({ message: 'Invite sent successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @PUT /api/groups/:id/invite/respond
+const respondToInvite = async (req, res) => {
+  try {
+    const { status } = req.body; // 'accepted' or 'rejected'
+    const group = await Group.findById(req.params.id);
+
+    if (!group) {
+      return res.status(404).json({ message: 'Group not found' });
+    }
+
+    // Find the invite for this user
+    const invite = group.invites.find(
+      i => i.user.toString() === req.user._id.toString() && i.status === 'pending'
+    );
+
+    if (!invite) {
+      return res.status(404).json({ message: 'Invite not found' });
+    }
+
+    invite.status = status;
+
+    // If accepted, add to members
+    if (status === 'accepted') {
+      group.members.push(req.user._id);
+    }
+
+    await group.save();
+
+    res.json({
+      message: status === 'accepted' ? 'Joined group successfully!' : 'Invite rejected'
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @GET /api/groups/invites/pending
+const getPendingInvites = async (req, res) => {
+  try {
+    const groups = await Group.find({
+      'invites.user': req.user._id,
+      'invites.status': 'pending'
+    })
+    .populate('createdBy', 'name email')
+    .select('name description createdBy invites');
+
+    // Only return relevant invite info
+    const invites = groups.map(group => ({
+      groupId: group._id,
+      groupName: group.name,
+      description: group.description,
+      invitedBy: group.createdBy
+    }));
+
+    res.json(invites);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+
+
+module.exports = { createGroup, getGroups, getGroupById, addExpense, getGroupExpenses, sendInvite, respondToInvite, getPendingInvites };

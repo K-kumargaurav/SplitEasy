@@ -7,7 +7,10 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: 'http://localhost:5173',
+    credentials: true
+}));
 app.use(express.json());
 
 // Test route
@@ -23,7 +26,6 @@ const settlementRoutes = require("./routes/settlementRoutes");
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/groups", groupRoutes);
-app.use("/api/groups", settlementRoutes);
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI)

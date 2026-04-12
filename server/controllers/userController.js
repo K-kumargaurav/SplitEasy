@@ -87,4 +87,24 @@ const getFriends = async(req, res) => {
     }
 }
 
-module.exports = { getProfile, sendFriendRequest, acceptFriendRequest, getFriends };
+// @GET /api/users/search?email=xxx
+const searchUsers = async (req, res) => {
+  try {
+    const { email } = req.query;
+
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+
+    const users = await User.find({
+      email: { $regex: email, $options: 'i' }, // case-insensitive search
+      _id: { $ne: req.user._id } // exclude yourself
+    }).select('name email').limit(5);
+
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+module.exports = { getProfile, sendFriendRequest, acceptFriendRequest, getFriends, searchUsers };
