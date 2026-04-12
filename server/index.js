@@ -8,8 +8,18 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({
-    origin: 'http://localhost:5173',
-    credentials: true
+  origin: function(origin, callback) {
+    const allowed = [
+      process.env.CLIENT_URL,
+      'http://localhost:5173'
+    ];
+    if(!origin || allowed.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
 }));
 app.use(express.json());
 
