@@ -14,10 +14,13 @@ export default function Dashboard() {
   const [error, setError] = useState("");
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [invites, setInvites] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
     fetchGroups();
     fetchInvites();
+    fetchNotifications();
   }, []);
 
   const fetchInvites = async () => {
@@ -32,8 +35,8 @@ export default function Dashboard() {
   const handleInviteResponse = async (groupId, status) => {
     try {
       await api.put(`/groups/${groupId}/invite/respond`, { status });
-      fetchInvites();
-      fetchGroups(); // refresh groups if accepted
+      setInvites((prev) => prev.filter((i) => i.groupId !== groupId));
+      fetchGroups();
     } catch (err) {
       setError(err.response?.data?.message || "Failed to respond");
     }
@@ -51,12 +54,32 @@ export default function Dashboard() {
     }
   };
 
+  const fetchNotifications = async () => {
+    try {
+      const res = await api.get("/users/notifications");
+      setNotifications(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleNotificationClick = async () => {
+    setShowNotifications(!showNotifications);
+    // Mark as read when opened
+    if (!showNotifications && unreadCount > 0) {
+      await api.put("/users/notifications/read");
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    }
+  };
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
   const handleCreateGroup = async (e) => {
     e.preventDefault();
     try {
       await api.post("/groups", {
         ...newGroup,
-        members: selectedMembers.map((m) => m._id), // ✅ send member IDs
+        members: selectedMembers.map((m) => m._id),
       });
       setNewGroup({ name: "", description: "" });
       setSelectedMembers([]);
@@ -75,33 +98,79 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Navbar */}
-      <nav className="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-green-600">SplitEasy</h1>
-        <div className="flex items-center gap-4">
-          <span className="text-gray-600">Hey, {user?.name}! 👋</span>
-          <button
-            onClick={handleLogout}
-            className="bg-red-500 text-white px-4 py-1.5 rounded-lg hover:bg-red-600 transition"
-          >
-            Logout
-          </button>
-        </div>
-      </nav>
+      <nav className="bg-white shadow-sm px-4 py-3 flex justify-between items-center sticky top-0 z-10">
+  <h1 className="text-xl font-bold text-green-600">SplitEasy</h1>
+  <div className="flex items-center gap-2">
+    <span className="text-gray-600 text-sm hidden sm:block">
+      Hey, {user?.name}! 👋
+    </span>
 
-      <div className="max-w-4xl mx-auto px-4 py-8">
+    {/* 🔔 Notification Bell */}
+    <div className="relative">
+      <button
+        onClick={handleNotificationClick}
+        className="relative p-2 text-gray-500 hover:text-gray-700"
+      >
+        🔔
+        {unreadCount > 0 && (
+          <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+            {unreadCount}
+          </span>
+        )}
+      </button>
+
+      {/* Dropdown */}
+      {showNotifications && (
+        <div className="absolute right-0 mt-1 w-72 bg-white rounded-xl shadow-lg border border-gray-200 z-20">
+          <div className="p-3 border-b border-gray-100">
+            <p className="font-semibold text-gray-800 text-sm">Notifications</p>
+          </div>
+          {notifications.length === 0 ? (
+            <p className="text-gray-400 text-sm p-4 text-center">No notifications</p>
+          ) : (
+            <div className="max-h-64 overflow-y-auto">
+              {notifications.map((n, i) => (
+                <div
+                  key={i}
+                  className={`p-3 border-b border-gray-50 text-sm ${
+                    !n.read ? 'bg-red-50' : ''
+                  }`}
+                >
+                  <p className="text-gray-700">{n.message}</p>
+                  <p className="text-gray-400 text-xs mt-1">
+                    {new Date(n.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+
+    <button
+      onClick={handleLogout}
+      className="bg-red-500 text-white px-3 py-1.5 rounded-lg hover:bg-red-600 transition text-sm"
+    >
+      Logout
+    </button>
+  </div>
+</nav>
+
+      <div className="max-w-2xl mx-auto px-3 py-5">
         {/* Pending Invites */}
         {invites.length > 0 && (
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-3">
+          <div className="mb-5">
+            <h2 className="text-base font-semibold text-gray-800 mb-3">
               🔔 Pending Invites ({invites.length})
             </h2>
             <div className="grid gap-3">
               {invites.map((invite) => (
                 <div
                   key={invite.groupId}
-                  className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex justify-between items-center"
+                  className="bg-yellow-50 border border-yellow-200 rounded-xl p-4"
                 >
-                  <div>
+                  <div className="mb-3">
                     <p className="font-semibold text-gray-800">
                       {invite.groupName}
                     </p>
@@ -112,7 +181,7 @@ export default function Dashboard() {
                       </span>
                     </p>
                     {invite.description && (
-                      <p className="text-sm text-gray-400">
+                      <p className="text-sm text-gray-400 mt-0.5">
                         {invite.description}
                       </p>
                     )}
@@ -122,7 +191,7 @@ export default function Dashboard() {
                       onClick={() =>
                         handleInviteResponse(invite.groupId, "accepted")
                       }
-                      className="bg-green-600 text-white px-4 py-1.5 rounded-lg hover:bg-green-700 transition text-sm"
+                      className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition text-sm font-medium"
                     >
                       Accept
                     </button>
@@ -130,7 +199,7 @@ export default function Dashboard() {
                       onClick={() =>
                         handleInviteResponse(invite.groupId, "rejected")
                       }
-                      className="bg-gray-200 text-gray-700 px-4 py-1.5 rounded-lg hover:bg-gray-300 transition text-sm"
+                      className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 transition text-sm font-medium"
                     >
                       Reject
                     </button>
@@ -140,15 +209,16 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+
         {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-gray-800">Your Groups</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold text-gray-800">Your Groups</h2>
           <button
             onClick={() => {
               setError("");
               setShowCreateForm(!showCreateForm);
             }}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm font-medium"
           >
             + New Group
           </button>
@@ -156,10 +226,10 @@ export default function Dashboard() {
 
         {/* Create Group Form */}
         {showCreateForm && (
-          <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-            <h3 className="text-lg font-semibold mb-4">Create New Group</h3>
+          <div className="bg-white rounded-xl shadow-md p-4 mb-5">
+            <h3 className="text-base font-semibold mb-4">Create New Group</h3>
             {error && (
-              <p className="bg-red-100 text-red-600 p-3 rounded-lg mb-4">
+              <p className="bg-red-100 text-red-600 p-3 rounded-lg mb-4 text-sm">
                 {error}
               </p>
             )}
@@ -175,7 +245,7 @@ export default function Dashboard() {
                   onChange={(e) =>
                     setNewGroup({ ...newGroup, name: e.target.value })
                   }
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
                   required
                 />
               </div>
@@ -190,7 +260,7 @@ export default function Dashboard() {
                   onChange={(e) =>
                     setNewGroup({ ...newGroup, description: e.target.value })
                   }
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
                 />
               </div>
               <div>
@@ -203,7 +273,6 @@ export default function Dashboard() {
                   }
                   existingMembers={selectedMembers}
                 />
-                {/* Selected members */}
                 {selectedMembers.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-2">
                     {selectedMembers.map((member) => (
@@ -228,17 +297,17 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
-              <div className="flex gap-3">
+              <div className="flex gap-3 pt-1">
                 <button
                   type="submit"
-                  className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition"
+                  className="flex-1 bg-green-600 text-white py-2.5 rounded-lg hover:bg-green-700 transition font-medium"
                 >
                   Create
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowCreateForm(false)}
-                  className="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 transition"
+                  className="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg hover:bg-gray-300 transition font-medium"
                 >
                   Cancel
                 </button>
@@ -253,36 +322,37 @@ export default function Dashboard() {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
           </div>
         ) : groups.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-400 text-lg">No groups yet!</p>
-            <p className="text-gray-400">
+          <div className="text-center py-16">
+            <p className="text-4xl mb-3">💸</p>
+            <p className="text-gray-500 font-medium">No groups yet!</p>
+            <p className="text-gray-400 text-sm mt-1">
               Create a group to start splitting expenses
             </p>
           </div>
         ) : (
-          <div className="grid gap-4">
+          <div className="grid gap-3">
             {groups.map((group) => (
               <div
                 key={group._id}
                 onClick={() => navigate(`/groups/${group._id}`)}
-                className="bg-white rounded-xl shadow-sm p-6 cursor-pointer hover:shadow-md transition"
+                className="bg-white rounded-xl shadow-sm p-4 cursor-pointer hover:shadow-md active:scale-95 transition"
               >
-                <div className="flex justify-between items-start">
+                <div className="flex justify-between items-center">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-800">
+                    <h3 className="font-semibold text-gray-800">
                       {group.name}
                     </h3>
                     {group.description && (
-                      <p className="text-gray-500 text-sm mt-1">
+                      <p className="text-gray-500 text-sm mt-0.5">
                         {group.description}
                       </p>
                     )}
-                    <p className="text-gray-400 text-sm mt-2">
+                    <p className="text-gray-400 text-xs mt-1">
                       {group.members.length} member
                       {group.members.length !== 1 ? "s" : ""}
                     </p>
                   </div>
-                  <span className="text-green-600 text-2xl">→</span>
+                  <span className="text-green-500 text-xl">›</span>
                 </div>
               </div>
             ))}

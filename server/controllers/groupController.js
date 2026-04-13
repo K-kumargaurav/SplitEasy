@@ -1,5 +1,6 @@
 const Group = require("../models/Group");
 const Expense = require("../models/Expense");
+const User = require("../models/User");
 
 // @POST /api/groups
 const createGroup = async(req, res) => {
@@ -220,6 +221,17 @@ const respondToInvite = async (req, res) => {
     // If accepted, add to members
     if (status === 'accepted') {
       group.members.push(req.user._id);
+    }
+
+    // ✅ Notify the group creator if rejected
+    if (status === 'rejected') {
+      const creator = await User.findById(group.createdBy);
+      if (creator) {
+        creator.notifications.push({
+          message: `${req.user.name} rejected your invite to "${group.name}"`
+        });
+        await creator.save();
+      }
     }
 
     await group.save();

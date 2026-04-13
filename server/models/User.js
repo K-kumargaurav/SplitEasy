@@ -1,40 +1,53 @@
 const mongoose = require("mongoose");
 
-const userSchema = new mongoose.Schema({
+const userSchema = new mongoose.Schema(
+  {
     name: {
-        type: String,
-        required: true,
-        trim: true
+      type: String,
+      required: true,
+      trim: true,
     },
     email: {
-        type: String,
-        required: true,
-        unique: true,
-        lowercase: true,
-        trim: true,
-        match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email']
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+      match: [/^\S+@\S+\.\S+$/, "Please enter a valid email"],
     },
     password: {
-        type: String,
-        required: true,
-        minlength: 6
+      type: String,
+      required: true,
+      minlength: 6,
     },
-    friends: [{
+    friends: [
+      {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "User"
-    }],
-    friendRequests: [{
+        ref: "User",
+      },
+    ],
+    friendRequests: [
+      {
         from: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'User'
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
         },
         status: {
-            type: String,
-            enum: ["pending", "accepted", "rejected"],
-            default: "pending"
-        }
-    }]
-},
-{ timestamps: true});
+          type: String,
+          enum: ["pending", "accepted", "rejected"],
+          default: "pending",
+        },
+      },
+    ],
+    notifications: [
+      {
+        message: { type: String },
+        read: { type: Boolean, default: false },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
+  },
+  { timestamps: true },
+);
 
 module.exports = mongoose.model("User", userSchema);
