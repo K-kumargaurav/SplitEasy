@@ -22,7 +22,7 @@ router.post('/:id/invite', protect, sendInvite);
 router.put('/:id/invite/respond', protect, respondToInvite);
 
 // nested settlement routes
-const settlementRoutes = require('./settlementRoutes');
-router.use('/:id', settlementRoutes);
+// const settlementRoutes = require('./settlementRoutes');
+// router.use('/:id', settlementRoutes);
 
 module.exports = router;

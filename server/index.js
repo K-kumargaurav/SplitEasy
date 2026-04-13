@@ -2,6 +2,8 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 require("dotenv").config();
+const http = require("http");
+const { Server } = require("socket.io");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -21,6 +23,7 @@ app.use(cors({
   },
   credentials: true
 }));
+
 app.use(express.json());
 
 // Test route
@@ -33,15 +36,43 @@ const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
 const groupRoutes = require("./routes/groupRoutes");
 const settlementRoutes = require("./routes/settlementRoutes");
+
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/groups", groupRoutes);
+app.use("/api", settlementRoutes);
 
-// Connect to MongoDB
+// Create HTTP server
+const server = http.createServer(app);
+
+// Socket.io setup
+const io = new Server(server, {
+  cors: {
+    origin: "*", // later restrict in production
+  },
+});
+
+global.io = io;
+
+io.on("connection", (socket) => {
+  console.log("User connected:", socket.id);
+
+  // Join user-specific room
+  socket.on("join", (userId) => {
+    socket.join(userId);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", socket.id);
+  });
+});
+
+// Connect to MongoDB + Start server
 mongoose.connect(process.env.MONGO_URI)
     .then(() => {
         console.log("MongoDB connected");
-        app.listen(PORT, () => {
+
+        server.listen(PORT, () => {
             console.log(`Server running on Port ${PORT}`);
         })
     })

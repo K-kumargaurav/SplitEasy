@@ -6,11 +6,12 @@ const {
   getPendingSettlements,
   getSettlements
 } = require("../controllers/settlementController");
-const auth = require("../middleware/auth");
 
-router.post("/groups/:id/settle", auth, settleUp);
-router.put("/settlements/:id/respond", auth, respondToSettlement);
-router.get("/settlements/pending", auth, getPendingSettlements);
-router.get("/groups/:id/settlements", auth, getSettlements);
+const { protect } = require("../middleware/authMiddleware");
+
+router.post("/groups/:id/settle", protect, settleUp);
+router.put("/settlements/:id/respond", protect, respondToSettlement);
+router.get("/settlements/pending", protect, getPendingSettlements);
+router.get("/groups/:id/settlements", protect, getSettlements);
 
 module.exports = router;
