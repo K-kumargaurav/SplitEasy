@@ -17,6 +17,7 @@ export default function GroupDetail() {
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
   const [inviteSuccess, setInviteSuccess] = useState("");
+  const [customSplits, setCustomSplits] = useState([]);
   const [newExpense, setNewExpense] = useState({
     description: "",
     amount: "",
@@ -63,13 +64,36 @@ export default function GroupDetail() {
 
   const handleAddExpense = async (e) => {
     e.preventDefault();
+
+    // Validate custom splits add up to total
+    if (newExpense.splitType === "custom") {
+      const total = customSplits.reduce(
+        (sum, s) => sum + (parseFloat(s.share) || 0),
+        0,
+      );
+      if (Math.round(total) !== Math.round(parseFloat(newExpense.amount))) {
+        setError(
+          `Custom splits must add up to ₹${newExpense.amount}. Currently: ₹${total}`,
+        );
+        return;
+      }
+    }
+
     try {
       await api.post(`/groups/${id}/expenses`, {
         description: newExpense.description,
         amount: parseFloat(newExpense.amount),
         splitType: newExpense.splitType,
+        customSplits:
+          newExpense.splitType === "custom"
+            ? customSplits.map((s) => ({
+                userId: s.userId,
+                share: parseFloat(s.share),
+              }))
+            : undefined,
       });
       setNewExpense({ description: "", amount: "", splitType: "equal" });
+      setCustomSplits([]);
       setShowExpenseForm(false);
       fetchAll();
     } catch (err) {
@@ -118,7 +142,9 @@ export default function GroupDetail() {
 
       <div className="max-w-2xl mx-auto px-3 py-4">
         {error && (
-          <p className="bg-red-100 text-red-600 p-3 rounded-lg mb-4 text-sm">{error}</p>
+          <p className="bg-red-100 text-red-600 p-3 rounded-lg mb-4 text-sm">
+            {error}
+          </p>
         )}
 
         {/* Members Card */}
@@ -183,7 +209,9 @@ export default function GroupDetail() {
         {activeTab === "expenses" && (
           <div>
             <div className="flex justify-between items-center mb-3">
-              <h2 className="text-base font-semibold text-gray-800">Expenses</h2>
+              <h2 className="text-base font-semibold text-gray-800">
+                Expenses
+              </h2>
               <button
                 onClick={() => setShowExpenseForm(!showExpenseForm)}
                 className="bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition text-sm"
@@ -198,14 +226,17 @@ export default function GroupDetail() {
                 <form onSubmit={handleAddExpense} className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Description
+                      Expense
                     </label>
                     <input
                       type="text"
                       placeholder="Hotel booking"
                       value={newExpense.description}
                       onChange={(e) =>
-                        setNewExpense({ ...newExpense, description: e.target.value })
+                        setNewExpense({
+                          ...newExpense,
+                          description: e.target.value,
+                        })
                       }
                       className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
                       required
@@ -233,15 +264,68 @@ export default function GroupDetail() {
                     </label>
                     <select
                       value={newExpense.splitType}
-                      onChange={(e) =>
-                        setNewExpense({ ...newExpense, splitType: e.target.value })
-                      }
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setNewExpense({ ...newExpense, splitType: val });
+                        if (val === "custom") {
+                          setCustomSplits(
+                            group.members.map((m) => ({
+                              userId: m._id,
+                              name: m.name,
+                              share: "",
+                            })),
+                          );
+                        } else {
+                          setCustomSplits([]);
+                        }
+                      }}
                       className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
                     >
                       <option value="equal">Equal Split</option>
                       <option value="custom">Custom Split</option>
                     </select>
                   </div>
+
+                  {/* Custom Split Inputs */}
+                  {newExpense.splitType === "custom" && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Enter amount per member
+                      </label>
+                      <div className="space-y-2">
+                        {customSplits.map((split, index) => (
+                          <div
+                            key={split.userId}
+                            className="flex items-center gap-3"
+                          >
+                            <span className="text-sm text-gray-700 w-28 truncate">
+                              {split.name}
+                            </span>
+                            <input
+                              type="number"
+                              inputMode="decimal"
+                              placeholder="0"
+                              value={split.share}
+                              onChange={(e) => {
+                                const updated = [...customSplits];
+                                updated[index].share = e.target.value;
+                                setCustomSplits(updated);
+                              }}
+                              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-2 text-sm text-gray-500">
+                        Total: ₹
+                        {customSplits.reduce(
+                          (sum, s) => sum + (parseFloat(s.share) || 0),
+                          0,
+                        )}
+                        {" / "}₹{newExpense.amount || 0}
+                      </div>
+                    </div>
+                  )}
                   <div className="flex gap-3">
                     <button
                       type="submit"
@@ -251,7 +335,15 @@ export default function GroupDetail() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setShowExpenseForm(false)}
+                      onClick={() => {
+                        setShowExpenseForm(false);
+                        setCustomSplits([]);
+                        setNewExpense({
+                          description: "",
+                          amount: "",
+                          splitType: "equal",
+                        });
+                      }}
                       className="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg hover:bg-gray-300 transition font-medium"
                     >
                       Cancel
@@ -270,7 +362,10 @@ export default function GroupDetail() {
             ) : (
               <div className="grid gap-3">
                 {expenses.map((expense) => (
-                  <div key={expense._id} className="bg-white rounded-xl shadow-sm p-4">
+                  <div
+                    key={expense._id}
+                    className="bg-white rounded-xl shadow-sm p-4"
+                  >
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <h3 className="font-semibold text-gray-800 text-sm">
@@ -283,7 +378,9 @@ export default function GroupDetail() {
                           </span>
                         </p>
                       </div>
-                      <span className="font-bold text-gray-800">₹{expense.amount}</span>
+                      <span className="font-bold text-gray-800">
+                        ₹{expense.amount}
+                      </span>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {expense.splitBetween.map((split) => (
@@ -295,7 +392,8 @@ export default function GroupDetail() {
                               : "bg-red-100 text-red-600"
                           }`}
                         >
-                          {split.user.name}: ₹{split.share} {split.paid ? "✓" : "✗"}
+                          {split.user.name}: ₹{split.share}{" "}
+                          {split.paid ? "✓" : "✗"}
                         </span>
                       ))}
                     </div>
@@ -309,11 +407,15 @@ export default function GroupDetail() {
         {/* Balances Tab */}
         {activeTab === "balances" && (
           <div>
-            <h2 className="text-base font-semibold text-gray-800 mb-3">Balances</h2>
+            <h2 className="text-base font-semibold text-gray-800 mb-3">
+              Balances
+            </h2>
             {balances.length === 0 ? (
               <div className="text-center py-12 bg-white rounded-xl shadow-sm">
                 <p className="text-green-600 font-medium">🎉 All settled up!</p>
-                <p className="text-gray-400 text-sm mt-1">No pending balances</p>
+                <p className="text-gray-400 text-sm mt-1">
+                  No pending balances
+                </p>
               </div>
             ) : (
               <div className="grid gap-3">
