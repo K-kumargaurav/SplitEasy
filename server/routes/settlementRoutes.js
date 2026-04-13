@@ -1,14 +1,16 @@
 const express = require("express");
-const router = express.Router({ mergeParams: true });
-const { protect } = require("../middleware/authMiddleware");
-const { 
-    getBalances, 
-    settleUp, 
-    getSettlements 
+const router = express.Router();
+const {
+  settleUp,
+  respondToSettlement,
+  getPendingSettlements,
+  getSettlements
 } = require("../controllers/settlementController");
+const auth = require("../middleware/auth");
 
-router.get("/balances", protect, getBalances);
-router.post("/settle", protect, settleUp);
-router.get("/settlements", protect, getSettlements)
+router.post("/groups/:id/settle", auth, settleUp);
+router.put("/settlements/:id/respond", auth, respondToSettlement);
+router.get("/settlements/pending", auth, getPendingSettlements);
+router.get("/groups/:id/settlements", auth, getSettlements);
 
 module.exports = router;

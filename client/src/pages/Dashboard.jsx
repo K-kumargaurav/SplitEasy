@@ -36,6 +36,7 @@ export default function Dashboard() {
     try {
       await api.put(`/groups/${groupId}/invite/respond`, { status });
       setInvites((prev) => prev.filter((i) => i.groupId !== groupId));
+      fetchInvites();
       fetchGroups();
     } catch (err) {
       setError(err.response?.data?.message || "Failed to respond");
