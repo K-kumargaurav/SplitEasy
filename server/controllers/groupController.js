@@ -1,6 +1,7 @@
 const Group = require("../models/Group");
 const Expense = require("../models/Expense");
 const User = require("../models/User");
+const sendNotification = require("../utils/sendNotification");
 
 // @POST /api/groups
 const createGroup = async (req, res) => {
@@ -16,7 +17,7 @@ const createGroup = async (req, res) => {
       invites: (members || []).map((userId) => ({
         user: userId,
         status: "pending",
-      })), 
+      })),
     });
 
     await group.populate("members", "name email");
@@ -198,7 +199,13 @@ const sendInvite = async (req, res) => {
     }
 
     group.invites.push({ user: userId });
+    
     await group.save();
+
+    await sendNotification(
+      userId,
+      `${req.user.name} invited you to join "${group.name}"`,
+    );
 
     res.json({ message: "Invite sent successfully" });
   } catch (error) {

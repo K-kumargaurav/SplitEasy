@@ -1,7 +1,7 @@
 const Expense = require("../models/Expense");
 const Settlement = require("../models/Settlement");
 const Group = require("../models/Group");
-
+const sendNotification = require("../utils/sendNotification");
 
 // @GET /api/groups/:id/balances
 const getBalances = async (req, res) => {
@@ -13,7 +13,7 @@ const getBalances = async (req, res) => {
     }
 
     // check membership
-    if (!group.members.some(m => m.toString() === req.user._id.toString())) {
+    if (!group.members.some((m) => m.toString() === req.user._id.toString())) {
       return res.status(403).json({ message: "Not a member of this group" });
     }
 
@@ -21,10 +21,10 @@ const getBalances = async (req, res) => {
 
     const balances = {};
 
-    expenses.forEach(expense => {
+    expenses.forEach((expense) => {
       const paidBy = expense.paidBy.toString();
 
-      expense.splitBetween.forEach(split => {
+      expense.splitBetween.forEach((split) => {
         const owedBy = split.user.toString();
 
         if (split.paid || owedBy === paidBy) return;
@@ -45,14 +45,13 @@ const getBalances = async (req, res) => {
           result.push({
             owedBy: debtor,
             owedTo: creditor,
-            amount: balances[creditor][debtor] / 100
+            amount: balances[creditor][debtor] / 100,
           });
         }
       }
     }
 
     res.json(result);
-
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -79,14 +78,18 @@ const settleUp = async (req, res) => {
       paidBy: req.user._id,
       paidTo: paidToId,
       amount: Math.round(amount * 100),
-      status: "pending"
+      status: "pending",
     });
+
+    await sendNotification(
+      paidToId,
+      `${req.user.name} wants to settle ₹${amount} with you`,
+    );
 
     res.status(201).json({
       message: "Settlement request sent",
-      settlement
+      settlement,
     });
-
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -119,14 +122,12 @@ const respondToSettlement = async (req, res) => {
     if (status === "accepted") {
       const expenses = await Expense.find({
         group: settlement.group,
-        paidBy: settlement.paidTo
+        paidBy: settlement.paidTo,
       });
 
       for (const expense of expenses) {
         const split = expense.splitBetween.find(
-          s =>
-            s.user.toString() === settlement.paidBy.toString() &&
-            !s.paid
+          (s) => s.user.toString() === settlement.paidBy.toString() && !s.paid,
         );
 
         if (split) {
@@ -137,14 +138,18 @@ const respondToSettlement = async (req, res) => {
     }
 
     await settlement.save();
+    
+    await sendNotification(
+      settlement.paidBy,
+      status === "accepted"
+        ? `${req.user.name} accepted your settlement`
+        : `${req.user.name} rejected your settlement`,
+    );
 
     res.json({
       message:
-        status === "accepted"
-          ? "Settlement confirmed"
-          : "Settlement rejected"
+        status === "accepted" ? "Settlement confirmed" : "Settlement rejected",
     });
-
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -156,13 +161,12 @@ const getPendingSettlements = async (req, res) => {
   try {
     const settlements = await Settlement.find({
       paidTo: req.user._id,
-      status: "pending"
+      status: "pending",
     })
       .populate("paidBy", "name email")
       .populate("group", "name");
 
     res.json(settlements);
-
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -177,7 +181,7 @@ const getSettlements = async (req, res) => {
       return res.status(404).json({ message: "Group not found" });
     }
 
-    if (!group.members.some(m => m.toString() === req.user._id.toString())) {
+    if (!group.members.some((m) => m.toString() === req.user._id.toString())) {
       return res.status(403).json({ message: "Not a member of this group" });
     }
 
@@ -186,7 +190,6 @@ const getSettlements = async (req, res) => {
       .populate("paidTo", "name email");
 
     res.json(settlements);
-
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -197,5 +200,5 @@ module.exports = {
   settleUp,
   respondToSettlement,
   getPendingSettlements,
-  getSettlements
+  getSettlements,
 };
