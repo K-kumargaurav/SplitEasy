@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import api from "../utils/api";
 import MemberSearch from "../components/MemberSearch";
 import socket from "../utils/socket";
+import toast from "react-hot-toast";
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
@@ -26,20 +27,58 @@ export default function Dashboard() {
 
     // listen for settlement notifications
     socket.on("settlement_request", (data) => {
-      alert(data.message);
-      fetchInvites();
-      fetchGroups();
+      toast((t) => (
+        <div
+          onClick={() => {
+            navigate(`/groups/${data.groupId}`);
+            toast.dismiss(t.id);
+          }}
+          style={{
+            cursor: "pointer",
+            padding: "8px",
+          }}
+        >
+          💰 {data.message}
+        </div>
+      ));
     });
 
     // listen for updates
-    socket.on("settlement_update", () => {
-      fetchInvites();
-      fetchGroups();
+    socket.on("settlement_update", (data) => {
+      toast((t) => (
+        <div
+          onClick={() => {
+            navigate("/dashboard");
+            toast.dismiss(t.id);
+          }}
+          style={{
+            cursor: "pointer",
+            padding: "8px",
+          }}
+        >
+          {data.status === "accepted"
+            ? "✅ Settlement accepted"
+            : "❌ Settlement rejected"}
+        </div>
+      ));
     });
 
     // invite notifications
-    socket.on("new_invite", () => {
-      fetchInvites();
+    socket.on("new_invite", (data) => {
+      toast((t) => (
+        <div
+          onClick={() => {
+            navigate(`/groups/${data.groupId}`);
+            toast.dismiss(t.id);
+          }}
+          style={{
+            cursor: "pointer",
+            padding: "8px",
+          }}
+        >
+          📩 New invite — Click to open
+        </div>
+      ));
     });
 
     return () => {

@@ -86,6 +86,11 @@ const settleUp = async (req, res) => {
       `${req.user.name} wants to settle ₹${amount} with you`,
     );
 
+    global.io.to(paidToId.toString()).emit("settlement_request", {
+      message: `${req.user.name} wants to settle ₹${amount}`,
+      groupId: req.params.id.toString(),
+    });
+
     res.status(201).json({
       message: "Settlement request sent",
       settlement,
@@ -138,13 +143,18 @@ const respondToSettlement = async (req, res) => {
     }
 
     await settlement.save();
-    
+
     await sendNotification(
       settlement.paidBy,
       status === "accepted"
         ? `${req.user.name} accepted your settlement`
         : `${req.user.name} rejected your settlement`,
     );
+
+    global.io.to(settlement.paidBy.toString()).emit("settlement_update", {
+      status,
+      groupId: settlement.group.toString(),
+    });
 
     res.json({
       message:

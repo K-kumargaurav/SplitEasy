@@ -199,13 +199,17 @@ const sendInvite = async (req, res) => {
     }
 
     group.invites.push({ user: userId });
-    
+
     await group.save();
 
     await sendNotification(
       userId,
       `${req.user.name} invited you to join "${group.name}"`,
     );
+    
+    global.io.to(userId.toString()).emit("new_invite", {
+      groupId: group._id.toString(),
+    });
 
     res.json({ message: "Invite sent successfully" });
   } catch (error) {
