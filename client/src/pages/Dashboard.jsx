@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../utils/api";
 import MemberSearch from "../components/MemberSearch";
+import socket from "../utils/socket";
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
@@ -18,10 +19,35 @@ export default function Dashboard() {
   const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
-    fetchGroups();
-    fetchInvites();
-    fetchNotifications();
-  }, []);
+    if (!user) return;
+
+    //join user room
+    socket.emit("join", user._id);
+
+    // listen for settlement notifications
+    socket.on("settlement_request", (data) => {
+      alert(data.message);
+      fetchInvites();
+      fetchGroups();
+    });
+
+    // listen for updates
+    socket.on("settlement_update", () => {
+      fetchInvites();
+      fetchGroups();
+    });
+
+    // invite notifications
+    socket.on("new_invite", () => {
+      fetchInvites();
+    });
+
+    return () => {
+      socket.off("settlement_request");
+      socket.off("settlement_update");
+      socket.off("new_invite");
+    };
+  }, [user]);
 
   const fetchInvites = async () => {
     try {
@@ -155,7 +181,8 @@ export default function Dashboard() {
 
           <button
             onClick={handleLogout}
-            className="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
+            className="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-medium"
+          >
             Logout
           </button>
         </div>
