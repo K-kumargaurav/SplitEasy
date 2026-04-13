@@ -99,65 +99,68 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gray-100">
       {/* Navbar */}
       <nav className="bg-white shadow-sm px-4 py-3 flex justify-between items-center sticky top-0 z-10">
-  <h1 className="text-xl font-bold text-green-600">SplitEasy</h1>
-  <div className="flex items-center gap-2">
-    <span className="text-gray-600 text-sm hidden sm:block">
-      Hey, {user?.name}! 👋
-    </span>
-
-    {/* 🔔 Notification Bell */}
-    <div className="relative">
-      <button
-        onClick={handleNotificationClick}
-        className="relative p-2 text-gray-500 hover:text-gray-700"
-      >
-        🔔
-        {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-            {unreadCount}
+        <h1 className="text-xl font-bold text-green-600">SplitEasy</h1>
+        <div className="flex items-center gap-2">
+          <span className="text-gray-600 text-sm hidden sm:block">
+            Hey, {user?.name}! 👋
           </span>
-        )}
-      </button>
 
-      {/* Dropdown */}
-      {showNotifications && (
-        <div className="absolute right-0 mt-1 w-72 bg-white rounded-xl shadow-lg border border-gray-200 z-20">
-          <div className="p-3 border-b border-gray-100">
-            <p className="font-semibold text-gray-800 text-sm">Notifications</p>
-          </div>
-          {notifications.length === 0 ? (
-            <p className="text-gray-400 text-sm p-4 text-center">No notifications</p>
-          ) : (
-            <div className="max-h-64 overflow-y-auto">
-              {notifications.map((n, i) => (
-                <div
-                  key={i}
-                  className={`p-3 border-b border-gray-50 text-sm ${
-                    !n.read ? 'bg-red-50' : ''
-                  }`}
-                >
-                  <p className="text-gray-700">{n.message}</p>
-                  <p className="text-gray-400 text-xs mt-1">
-                    {new Date(n.createdAt).toLocaleDateString()}
+          {/* 🔔 Notification Bell */}
+          <div className="relative">
+            <button
+              onClick={handleNotificationClick}
+              className="relative p-3 text-gray-500 hover:text-gray-700"
+            >
+              🔔
+              {unreadCount > 0 && (
+                <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+
+            {/* Dropdown */}
+            {showNotifications && (
+              <div className="absolute right-0 mt-1 w-72 max-w-[90vw] bg-white rounded-xl shadow-lg border border-gray-200 z-20">
+                <div className="p-3 border-b border-gray-100">
+                  <p className="font-semibold text-gray-800 text-sm">
+                    Notifications
                   </p>
                 </div>
-              ))}
-            </div>
-          )}
+                {notifications.length === 0 ? (
+                  <p className="text-gray-400 text-sm p-4 text-center">
+                    No notifications
+                  </p>
+                ) : (
+                  <div className="max-h-64 overflow-y-auto">
+                    {notifications.map((n, i) => (
+                      <div
+                        key={i}
+                        className={`p-3 border-b border-gray-50 text-sm ${
+                          !n.read ? "bg-red-50" : ""
+                        }`}
+                      >
+                        <p className="text-gray-700">{n.message}</p>
+                        <p className="text-gray-400 text-xs mt-1">
+                          {new Date(n.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={handleLogout}
+            className="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
+            Logout
+          </button>
         </div>
-      )}
-    </div>
+      </nav>
 
-    <button
-      onClick={handleLogout}
-      className="bg-red-500 text-white px-3 py-1.5 rounded-lg hover:bg-red-600 transition text-sm"
-    >
-      Logout
-    </button>
-  </div>
-</nav>
-
-      <div className="max-w-2xl mx-auto px-3 py-5">
+      <div className="max-w-2xl mx-auto px-2 sm:px-4 py-5 pb-24">
         {/* Pending Invites */}
         {invites.length > 0 && (
           <div className="mb-5">
@@ -191,7 +194,7 @@ export default function Dashboard() {
                       onClick={() =>
                         handleInviteResponse(invite.groupId, "accepted")
                       }
-                      className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition text-sm font-medium"
+                      className="flex-1 bg-green-600 text-white py-3 rounded-lg text-base font-medium"
                     >
                       Accept
                     </button>
@@ -199,7 +202,7 @@ export default function Dashboard() {
                       onClick={() =>
                         handleInviteResponse(invite.groupId, "rejected")
                       }
-                      className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 transition text-sm font-medium"
+                      className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg text-base font-medium"
                     >
                       Reject
                     </button>
@@ -211,14 +214,14 @@ export default function Dashboard() {
         )}
 
         {/* Header */}
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex justify-between items-center mb-4 gap-2">
           <h2 className="text-lg font-semibold text-gray-800">Your Groups</h2>
           <button
             onClick={() => {
               setError("");
               setShowCreateForm(!showCreateForm);
             }}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm font-medium"
+            className="bg-green-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium"
           >
             + New Group
           </button>
@@ -226,13 +229,22 @@ export default function Dashboard() {
 
         {/* Create Group Form */}
         {showCreateForm && (
-          <div className="bg-white rounded-xl shadow-md p-4 mb-5">
-            <h3 className="text-base font-semibold mb-4">Create New Group</h3>
+          <div className="fixed inset-0 bg-white z-50 p-4 overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold">Create Group</h2>
+              <button
+                onClick={() => setShowCreateForm(false)}
+                className="text-gray-500 text-xl"
+              >
+                ✕
+              </button>
+            </div>
             {error && (
               <p className="bg-red-100 text-red-600 p-3 rounded-lg mb-4 text-sm">
                 {error}
               </p>
             )}
+
             <form onSubmit={handleCreateGroup} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -240,27 +252,27 @@ export default function Dashboard() {
                 </label>
                 <input
                   type="text"
-                  placeholder="Goa Trip"
+                  placeholder="e.g. Goa Trip, Room Rent, Monthly Bills etc."
                   value={newGroup.name}
                   onChange={(e) =>
                     setNewGroup({ ...newGroup, name: e.target.value })
                   }
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
+                  className="w-full border border-gray-300 rounded-xl px-4 py-3.5 text-base focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
                   required
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
+                  Notes
                 </label>
                 <input
                   type="text"
-                  placeholder="Trip expenses"
+                  placeholder="Add details like purpose, activities, items, dates etc. (optional)"
                   value={newGroup.description}
                   onChange={(e) =>
                     setNewGroup({ ...newGroup, description: e.target.value })
                   }
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
+                  className="w-full border border-gray-300 rounded-xl px-4 py-3.5 text-base focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
                 />
               </div>
               <div>
@@ -288,7 +300,7 @@ export default function Dashboard() {
                               prev.filter((m) => m._id !== member._id),
                             )
                           }
-                          className="text-green-500 hover:text-red-500 font-bold"
+                          className="ml-1 bg-red-100 text-red-500 px-2 py-1 rounded-full text-xs"
                         >
                           ×
                         </button>
@@ -300,14 +312,14 @@ export default function Dashboard() {
               <div className="flex gap-3 pt-1">
                 <button
                   type="submit"
-                  className="flex-1 bg-green-600 text-white py-2.5 rounded-lg hover:bg-green-700 transition font-medium"
+                  className="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition font-medium"
                 >
                   Create
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowCreateForm(false)}
-                  className="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg hover:bg-gray-300 transition font-medium"
+                  className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition font-medium"
                 >
                   Cancel
                 </button>
@@ -335,9 +347,9 @@ export default function Dashboard() {
               <div
                 key={group._id}
                 onClick={() => navigate(`/groups/${group._id}`)}
-                className="bg-white rounded-xl shadow-sm p-4 cursor-pointer hover:shadow-md active:scale-95 transition"
+                className="bg-white rounded-xl shadow-sm p-4 active:scale-95 transition duration-150"
               >
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col gap-3">
                   <div>
                     <h3 className="font-semibold text-gray-800">
                       {group.name}

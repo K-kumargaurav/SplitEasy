@@ -123,7 +123,7 @@ export default function GroupDetail() {
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Navbar */}
-      <nav className="bg-white shadow-sm px-4 py-3 flex justify-between items-center sticky top-0 z-10">
+      <nav className="bg-white/90 backdrop-blur shadow-sm px-3 py-3 flex justify-between items-center sticky top-0 z-10">
         <div className="flex items-center gap-2">
           <button
             onClick={() => navigate("/dashboard")}
@@ -131,7 +131,7 @@ export default function GroupDetail() {
           >
             ←
           </button>
-          <h1 className="text-base font-bold text-green-600 truncate max-w-[180px] sm:max-w-xs">
+          <h1 className="text-lg font-semibold text-green-600 truncate">
             {group?.name}
           </h1>
         </div>
@@ -140,7 +140,7 @@ export default function GroupDetail() {
         </span>
       </nav>
 
-      <div className="max-w-2xl mx-auto px-3 py-4">
+      <div className="max-w-2xl mx-auto px-2 sm:px-4 py-4 pb-24">
         {error && (
           <p className="bg-red-100 text-red-600 p-3 rounded-lg mb-4 text-sm">
             {error}
@@ -163,13 +163,18 @@ export default function GroupDetail() {
             )}
           </div>
 
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 overflow-x-auto">
             {group?.members.map((member) => (
               <span
                 key={member._id}
                 className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-medium"
               >
-                {member.name} {member._id === user?.id ? "(You)" : ""}
+                {member.name}
+                {member._id === user?.id && (
+                  <span className="ml-1 text-[10px] bg-black text-white px-2 py-0.5 rounded-full">
+                    YOU
+                  </span>
+                )}
               </span>
             ))}
           </div>
@@ -189,15 +194,15 @@ export default function GroupDetail() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-4">
+        <div className="flex bg-gray-200 rounded-lg p-1 mb-4">
           {["expenses", "balances"].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`flex-1 py-2.5 rounded-lg font-medium capitalize transition text-sm ${
+              className={`flex-1 py-3 rounded-md text-base font-medium transition ${
                 activeTab === tab
-                  ? "bg-green-600 text-white"
-                  : "bg-white text-gray-600"
+                  ? "bg-white shadow text-green-600"
+                  : "text-gray-500"
               }`}
             >
               {tab}
@@ -212,17 +217,20 @@ export default function GroupDetail() {
               <h2 className="text-base font-semibold text-gray-800">
                 Expenses
               </h2>
-              <button
-                onClick={() => setShowExpenseForm(!showExpenseForm)}
-                className="bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition text-sm"
-              >
-                + Add
-              </button>
             </div>
 
             {/* Add Expense Form */}
             {showExpenseForm && (
-              <div className="bg-white rounded-xl shadow-sm p-4 mb-4">
+              <div className="fixed inset-0 bg-white z-50 p-4 overflow-y-auto">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold">Add Expense</h2>
+                  <button
+                    onClick={() => setShowExpenseForm(false)}
+                    className="text-gray-500 text-xl"
+                  >
+                    ✕
+                  </button>
+                </div>
                 <form onSubmit={handleAddExpense} className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -238,7 +246,7 @@ export default function GroupDetail() {
                           description: e.target.value,
                         })
                       }
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
+                      className="w-full border border-gray-300 rounded-xl px-4 py-3.5 text-base focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
                       required
                     />
                   </div>
@@ -254,7 +262,7 @@ export default function GroupDetail() {
                       onChange={(e) =>
                         setNewExpense({ ...newExpense, amount: e.target.value })
                       }
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
+                      className="w-full border border-gray-300 rounded-xl px-4 py-3.5 text-base focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
                       required
                     />
                   </div>
@@ -279,7 +287,7 @@ export default function GroupDetail() {
                           setCustomSplits([]);
                         }
                       }}
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
+                      className="w-full border border-gray-300 rounded-xl px-4 py-3.5 text-base focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
                     >
                       <option value="equal">Equal Split</option>
                       <option value="custom">Custom Split</option>
@@ -311,7 +319,7 @@ export default function GroupDetail() {
                                 updated[index].share = e.target.value;
                                 setCustomSplits(updated);
                               }}
-                              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                              className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-green-500"
                             />
                           </div>
                         ))}
@@ -329,7 +337,7 @@ export default function GroupDetail() {
                   <div className="flex gap-3">
                     <button
                       type="submit"
-                      className="flex-1 bg-green-600 text-white py-2.5 rounded-lg hover:bg-green-700 transition font-medium"
+                      className="flex-1 bg-green-600 text-white py-3 rounded-lg text-base hover:bg-green-700 transition font-medium"
                     >
                       Add
                     </button>
@@ -344,7 +352,7 @@ export default function GroupDetail() {
                           splitType: "equal",
                         });
                       }}
-                      className="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg hover:bg-gray-300 transition font-medium"
+                      className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg text-base hover:bg-gray-300 transition font-medium"
                     >
                       Cancel
                     </button>
@@ -357,7 +365,13 @@ export default function GroupDetail() {
             {expenses.length === 0 ? (
               <div className="text-center py-16">
                 <p className="text-3xl mb-2">🧾</p>
-                <p className="text-gray-400 text-sm">No expenses yet!</p>
+                <p className="text-gray-400 text-sm">No expenses yet</p>
+                <button
+                  onClick={() => setShowExpenseForm(true)}
+                  className="mt-3 text-green-600 font-medium"
+                >
+                  Add your first expense →
+                </button>
               </div>
             ) : (
               <div className="grid gap-3">
@@ -366,7 +380,7 @@ export default function GroupDetail() {
                     key={expense._id}
                     className="bg-white rounded-xl shadow-sm p-4"
                   >
-                    <div className="flex justify-between items-start mb-2">
+                    <div className="flex flex-col gap-1 mb-2">
                       <div>
                         <h3 className="font-semibold text-gray-800 text-sm">
                           {expense.description}
@@ -378,7 +392,7 @@ export default function GroupDetail() {
                           </span>
                         </p>
                       </div>
-                      <span className="font-bold text-gray-800">
+                      <span className="text-lg font-bold text-gray-800">
                         ₹{expense.amount}
                       </span>
                     </div>
@@ -424,7 +438,7 @@ export default function GroupDetail() {
                     key={index}
                     className="bg-white rounded-xl shadow-sm p-4"
                   >
-                    <div className="flex justify-between items-center">
+                    <div className="flex flex-col gap-3">
                       <div>
                         <p className="text-sm text-gray-800">
                           <span className="text-red-500 font-medium">
@@ -442,7 +456,7 @@ export default function GroupDetail() {
                       {balance.owedBy === user?.id && (
                         <button
                           onClick={() => handleSettle(balance)}
-                          className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm font-medium"
+                          className="bg-green-600 text-white w-full py-3 rounded-lg text-base hover:bg-green-700 transition text-sm font-medium"
                         >
                           Settle Up
                         </button>
@@ -454,6 +468,14 @@ export default function GroupDetail() {
             )}
           </div>
         )}
+      </div>
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-3 pb-5 flex justify-end">
+        <button
+          onClick={() => setShowExpenseForm(true)}
+          className="bg-green-600 text-white px-6 py-3 rounded-full text-base font-medium shadow-lg"
+        >
+          + Add Expense
+        </button>
       </div>
     </div>
   );
