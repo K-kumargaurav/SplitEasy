@@ -18,6 +18,7 @@ export default function Dashboard() {
   const [invites, setInvites] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [pendingSettlements, setPendingSettlements] = useState([]);
   const notifRef = useRef(null);
 
   useEffect(() => {
@@ -90,6 +91,13 @@ export default function Dashboard() {
     };
   }, [user]);
 
+  useEffect(() => {
+    fetchGroups();
+    fetchInvites();
+    fetchNotifications();
+    fetchPendingSettlements();
+  }, []);
+
   const fetchInvites = async () => {
     try {
       const res = await api.get("/groups/invites/pending");
@@ -157,11 +165,30 @@ export default function Dashboard() {
     }
   };
 
-  useEffect(() => {
-    fetchGroups();
-    fetchInvites();
-    fetchNotifications();
-  }, []);
+  const fetchPendingSettlements = async () => {
+    try {
+      const res = await api.get("/settlements/pending");
+      setPendingSettlements(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleSettlementResponse = async (settlementId, status) => {
+    try {
+      await api.put(`/settlements/${settlementId}/respond`, { status });
+      setPendingSettlements((prev) =>
+        prev.filter((s) => s._id !== settlementId),
+      );
+      toast.success(
+        status === "accepted"
+          ? "Settlement confirmed! ✅"
+          : "Settlement rejected",
+      );
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to respond");
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -204,7 +231,7 @@ export default function Dashboard() {
 
             {/* Dropdown */}
             {showNotifications && (
-              <div className="absolute right-0 mt-1 w-72 max-w-[90vw] bg-white rounded-xl shadow-lg border border-gray-200 z-20">
+              <div className="fixed right-2 top-16 w-[calc(100vw-16px)] sm:absolute sm:right-0 sm:top-auto sm:w-72 bg-white rounded-xl shadow-lg border border-gray-200 z-20">
                 <div className="p-3 border-b border-gray-100">
                   <p className="font-semibold text-gray-800 text-sm">
                     Notifications
@@ -243,6 +270,49 @@ export default function Dashboard() {
           </button>
         </div>
       </nav>
+
+      {/* Pending Settlements */}
+      {pendingSettlements.length > 0 && (
+        <div className="mb-5">
+          <h2 className="text-base font-semibold text-gray-800 mb-3">
+            💰 Settlement Requests ({pendingSettlements.length})
+          </h2>
+          <div className="grid gap-3">
+            {pendingSettlements.map((s) => (
+              <div
+                key={s._id}
+                className="bg-blue-50 border border-blue-200 rounded-xl p-4"
+              >
+                <div className="mb-3">
+                  <p className="font-semibold text-gray-800">
+                    {s.paidBy.name} wants to pay you
+                  </p>
+                  <p className="text-xl font-bold text-green-600 mt-1">
+                    ₹{s.amount / 100}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-0.5">
+                    Group: {s.group.name}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleSettlementResponse(s._id, "accepted")}
+                    className="flex-1 bg-green-600 text-white py-3 rounded-lg text-base font-medium"
+                  >
+                    Confirm ✅
+                  </button>
+                  <button
+                    onClick={() => handleSettlementResponse(s._id, "rejected")}
+                    className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg text-base font-medium"
+                  >
+                    Reject ❌
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="max-w-2xl mx-auto px-2 sm:px-4 py-5 pb-24">
         {/* Pending Invites */}
