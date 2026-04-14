@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../utils/api";
@@ -18,12 +18,13 @@ export default function Dashboard() {
   const [invites, setInvites] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const notifRef = useRef(null);
 
   useEffect(() => {
     if (!user) return;
 
     //join user room
-    socket.emit("join", user._id);
+    socket.emit("join", user.id);
 
     // listen for settlement notifications
     socket.on("settlement_request", (data) => {
@@ -85,6 +86,7 @@ export default function Dashboard() {
       socket.off("settlement_request");
       socket.off("settlement_update");
       socket.off("new_invite");
+      socket.emit("leave", user.id);
     };
   }, [user]);
 
@@ -101,8 +103,7 @@ export default function Dashboard() {
     try {
       await api.put(`/groups/${groupId}/invite/respond`, { status });
       setInvites((prev) => prev.filter((i) => i.groupId !== groupId));
-      fetchInvites();
-      fetchGroups();
+      if (status === "accepted") fetchGroups();
     } catch (err) {
       setError(err.response?.data?.message || "Failed to respond");
     }
@@ -155,6 +156,22 @@ export default function Dashboard() {
       setError(err.response?.data?.message || "Failed to create group");
     }
   };
+
+  useEffect(() => {
+    fetchGroups();
+    fetchInvites();
+    fetchNotifications();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleLogout = () => {
     logout();

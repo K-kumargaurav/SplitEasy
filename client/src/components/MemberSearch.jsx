@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import api from "../utils/api";
 
 export default function MemberSearch({ onAdd, existingMembers = [] }) {
+  const debounceRef = useRef(null);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -12,18 +13,21 @@ export default function MemberSearch({ onAdd, existingMembers = [] }) {
       setResults([]);
       return;
     }
-    setLoading(true);
-    try {
-      const res = await api.get(`/users/search?email=${value}`);
-      const filtered = res.data.filter(
-        (u) => !existingMembers.find((m) => m._id === u._id || m === u._id),
-      );
-      setResults(filtered);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const res = await api.get(`/users/search?email=${value}`);
+        const filtered = res.data.filter(
+          (u) => !existingMembers.find((m) => m._id === u._id || m === u._id),
+        );
+        setResults(filtered);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }, 400);
   };
 
   const handleAdd = (user) => {

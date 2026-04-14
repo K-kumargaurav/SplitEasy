@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../utils/api";
 import MemberSearch from "../components/MemberSearch";
+import toast from "react-hot-toast";
 
 export default function GroupDetail() {
   const { id } = useParams();
@@ -31,14 +32,19 @@ export default function GroupDetail() {
 
   const fetchAll = async () => {
     try {
-      const [groupRes, expensesRes, balancesRes] = await Promise.all([
+      const [groupRes, expensesRes, balancesRes] = await Promise.allSettled([
         api.get(`/groups/${id}`),
         api.get(`/groups/${id}/expenses`),
         api.get(`/groups/${id}/balances`),
       ]);
-      setGroup(groupRes.data);
-      setExpenses(expensesRes.data);
-      setBalances(balancesRes.data);
+
+      if (groupRes.status === "fulfilled") setGroup(groupRes.value.data);
+      if (expensesRes.status === "fulfilled")
+        setExpenses(expensesRes.value.data);
+      if (balancesRes.status === "fulfilled")
+        setBalances(balancesRes.value.data);
+      if (groupRes.status === "rejected") setError("Failed to load group data");
+
     } catch (err) {
       setError("Failed to load group data");
     } finally {
@@ -52,6 +58,7 @@ export default function GroupDetail() {
   };
 
   const handleSendInvite = async (invitedUser) => {
+    setError("");
     try {
       await api.post(`/groups/${id}/invite`, { userId: invitedUser._id });
       setInviteSuccess(`Invite sent to ${invitedUser.name}!`);
@@ -64,6 +71,7 @@ export default function GroupDetail() {
 
   const handleAddExpense = async (e) => {
     e.preventDefault();
+    setError("");
 
     // Validate custom splits add up to total
     if (newExpense.splitType === "custom") {
@@ -102,11 +110,13 @@ export default function GroupDetail() {
   };
 
   const handleSettle = async (balance) => {
+    setError("");
     try {
       await api.post(`/groups/${id}/settle`, {
         paidToId: balance.owedTo,
         amount: balance.amount,
       });
+      toast.success("Settlement request sent! ✅");
       fetchAll();
     } catch (err) {
       setError(err.response?.data?.message || "Failed to settle");
