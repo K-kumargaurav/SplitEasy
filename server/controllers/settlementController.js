@@ -69,7 +69,7 @@ const settleUp = async (req, res) => {
       return res.status(404).json({ message: "Group not found" });
     }
 
-    if (!group.members.includes(req.user._id)) {
+    if (!group.members.some((m) => m.toString() === req.user._id.toString())) {
       return res.status(403).json({ message: "Not a member" });
     }
 
@@ -86,14 +86,16 @@ const settleUp = async (req, res) => {
       `${req.user.name} wants to settle ₹${amount} with you`,
     );
 
-    global.io.to(paidToId.toString()).emit("settlement_request", {
-      message: `${req.user.name} wants to settle ₹${amount}`,
-      groupId: req.params.id.toString(),
-    });
+    if (global.io) {
+      global.io.to(paidToId.toString()).emit("settlement_request", {
+        message: `${req.user.name} wants to settle ₹${amount}`,
+        groupId: req.params.id.toString(),
+      });
+    }
 
     res.status(201).json({
       message: "Settlement request sent",
-      settlement,
+      settlement: { ...settlement.toObject(), amount: settlement.amount / 100 },
     });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
@@ -105,6 +107,9 @@ const settleUp = async (req, res) => {
 const respondToSettlement = async (req, res) => {
   try {
     const { status } = req.body; // accepted / rejected
+    if (!["accepted", "rejected"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
 
     const settlement = await Settlement.findById(req.params.id);
 
@@ -130,13 +135,16 @@ const respondToSettlement = async (req, res) => {
         paidBy: settlement.paidTo,
       });
 
+      let remaining = settlement.amount; // track how much to mark paid
+
       for (const expense of expenses) {
         const split = expense.splitBetween.find(
           (s) => s.user.toString() === settlement.paidBy.toString() && !s.paid,
         );
 
-        if (split) {
+        if (split && remaining >= split.share) {
           split.paid = true;
+          remaining -= split.share;
           await expense.save();
         }
       }
@@ -151,10 +159,12 @@ const respondToSettlement = async (req, res) => {
         : `${req.user.name} rejected your settlement`,
     );
 
-    global.io.to(settlement.paidBy.toString()).emit("settlement_update", {
-      status,
-      groupId: settlement.group.toString(),
-    });
+    if (global.io) {
+      global.io.to(settlement.paidBy.toString()).emit("settlement_update", {
+        status,
+        groupId: settlement.group.toString(),
+      });
+    }
 
     res.json({
       message:

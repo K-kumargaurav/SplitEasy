@@ -119,7 +119,7 @@ const getNotifications = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
     // Return newest first
-    const notifications = user.notifications
+    const notifications = [...user.notifications]
       .sort((a, b) => b.createdAt - a.createdAt)
       .slice(0, 20); // max 20
     res.json(notifications);

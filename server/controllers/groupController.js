@@ -206,10 +206,12 @@ const sendInvite = async (req, res) => {
       userId,
       `${req.user.name} invited you to join "${group.name}"`,
     );
-    
-    global.io.to(userId.toString()).emit("new_invite", {
-      groupId: group._id.toString(),
-    });
+
+    if (global.io) {
+      global.io
+        .to(userId.toString())
+        .emit("new_invite", { groupId: group._id.toString() });
+    }
 
     res.json({ message: "Invite sent successfully" });
   } catch (error) {
@@ -221,6 +223,9 @@ const sendInvite = async (req, res) => {
 const respondToInvite = async (req, res) => {
   try {
     const { status } = req.body; // 'accepted' or 'rejected'
+    if (!["accepted", "rejected"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
     const group = await Group.findById(req.params.id);
 
     if (!group) {
@@ -245,21 +250,21 @@ const respondToInvite = async (req, res) => {
         ),
     );
 
-    // If accepted, add to members
     if (status === "accepted") {
       group.members.push(req.user._id);
+      await sendNotification(
+        group.createdBy,
+        `${req.user.name} accepted your invite to "${group.name}"`,
+      );
     }
 
-    // Notify the group creator if rejected
     if (status === "rejected") {
-      const creator = await User.findById(group.createdBy);
-      if (creator) {
-        creator.notifications.push({
-          message: `${req.user.name} rejected your invite to "${group.name}"`,
-        });
-        await creator.save();
-      }
+      await sendNotification(
+        group.createdBy,
+        `${req.user.name} rejected your invite to "${group.name}"`,
+      );
     }
+    
     await group.save();
 
     res.json({
