@@ -41,7 +41,7 @@ const settlementRoutes = require("./routes/settlementRoutes");
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/groups", groupRoutes);
-app.use("/api", settlementRoutes);
+// app.use("/api", settlementRoutes);
 
 // Create HTTP server
 const server = http.createServer(app);
