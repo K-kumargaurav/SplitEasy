@@ -44,7 +44,6 @@ export default function GroupDetail() {
       if (balancesRes.status === "fulfilled")
         setBalances(balancesRes.value.data);
       if (groupRes.status === "rejected") setError("Failed to load group data");
-
     } catch (err) {
       setError("Failed to load group data");
     } finally {
@@ -446,7 +445,7 @@ export default function GroupDetail() {
                 {balances.map((balance, index) => (
                   <div
                     key={index}
-                    className="bg-white rounded-xl shadow-sm p-4"
+                    className="bg-white rounded-lg shadow-sm border mb-2 p-3"
                   >
                     <div className="flex flex-col gap-3">
                       <div>
@@ -460,10 +459,12 @@ export default function GroupDetail() {
                           </span>
                         </p>
                         <p className="text-xl font-bold text-gray-800 mt-1">
-                          ₹{balance.amount}
+                          {balance.owedBy === user._id
+                            ? `You owe ₹${balance.amount}`
+                            : `You will receive ₹${balance.amount}`}
                         </p>
                       </div>
-                      {balance.owedBy === user?.id && (
+                      {balance.owedBy === user._id && (
                         <button
                           onClick={() => handleSettle(balance)}
                           className="bg-green-600 text-white w-full py-3 rounded-lg text-base hover:bg-green-700 transition text-sm font-medium"

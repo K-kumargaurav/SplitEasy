@@ -12,8 +12,7 @@ const getBalances = async (req, res) => {
       return res.status(404).json({ message: "Group not found" });
     }
 
-    // check membership
-    if (!group.members.some((m) => m.toString() === req.user._id.toString())) {
+    if (!group.members.some(m => m.toString() === req.user._id.toString())) {
       return res.status(403).json({ message: "Not a member of this group" });
     }
 
@@ -21,37 +20,42 @@ const getBalances = async (req, res) => {
 
     const balances = {};
 
-    expenses.forEach((expense) => {
+    expenses.forEach(expense => {
       const paidBy = expense.paidBy.toString();
 
-      expense.splitBetween.forEach((split) => {
+      expense.splitBetween.forEach(split => {
         const owedBy = split.user.toString();
 
-        if (split.paid || owedBy === paidBy) return;
+        if (owedBy === paidBy) return;
 
-        const amount = split.share;
+        if (!balances[owedBy]) balances[owedBy] = {};
+        if (!balances[owedBy][paidBy]) balances[owedBy][paidBy] = 0;
 
-        if (!balances[paidBy]) balances[paidBy] = {};
-        if (!balances[paidBy][owedBy]) balances[paidBy][owedBy] = 0;
-
-        balances[paidBy][owedBy] += amount;
+        // ONLY count unpaid
+        if (!split.paid) {
+          balances[owedBy][paidBy] += split.share;
+        }
       });
     });
 
     const result = [];
-    for (const creditor in balances) {
-      for (const debtor in balances[creditor]) {
-        if (balances[creditor][debtor] > 0) {
+
+    for (const debtor in balances) {
+      for (const creditor in balances[debtor]) {
+        const amount = balances[debtor][creditor];
+
+        if (amount > 0) {
           result.push({
             owedBy: debtor,
             owedTo: creditor,
-            amount: balances[creditor][debtor] / 100,
+            amount: amount / 100,
           });
         }
       }
     }
 
     res.json(result);
+
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }

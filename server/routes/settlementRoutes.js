@@ -4,11 +4,13 @@ const {
   settleUp,
   respondToSettlement,
   getPendingSettlements,
-  getSettlements
+  getSettlements,
+  getBalances,
 } = require("../controllers/settlementController");
 
 const { protect } = require("../middleware/authMiddleware");
 
+router.get("/groups/:id/balances", protect, getBalances);
 router.post("/groups/:id/settle", protect, settleUp);
 router.put("/settlements/:id/respond", protect, respondToSettlement);
 router.get("/settlements/pending", protect, getPendingSettlements);
