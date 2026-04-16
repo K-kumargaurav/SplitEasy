@@ -459,12 +459,12 @@ export default function GroupDetail() {
                           </span>
                         </p>
                         <p className="text-xl font-bold text-gray-800 mt-1">
-                          {balance.owedBy === user._id
+                          {balance.owedBy === user.id
                             ? `You owe ₹${balance.amount}`
                             : `You will receive ₹${balance.amount}`}
                         </p>
                       </div>
-                      {balance.owedBy === user._id && (
+                      {balance.owedBy === user.id && (
                         <button
                           onClick={() => handleSettle(balance)}
                           className="bg-green-600 text-white w-full py-3 rounded-lg text-base hover:bg-green-700 transition text-sm font-medium"
