@@ -7,7 +7,7 @@ import toast from "react-hot-toast";
 
 export default function GroupDetail() {
   const { id } = useParams();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   const [group, setGroup] = useState(null);
@@ -27,12 +27,13 @@ export default function GroupDetail() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (authLoading) return;
     if (!user) {
       navigate("/login");
       return;
     }
     fetchAll();
-  }, [id, user]);
+  }, [id, user, authLoading]);
 
   const fetchAll = async () => {
     try {
@@ -136,7 +137,7 @@ export default function GroupDetail() {
     }
   };
 
-  if (loading)
+  if (authLoading || loading)
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
@@ -291,7 +292,7 @@ export default function GroupDetail() {
                       onChange={(e) =>
                         setNewExpense({ ...newExpense, amount: e.target.value })
                       }
-                      className="w-full border border-gray-300 rounded-xl px-4 py-3.5 text-base focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
+                      className="w-full border border-gray-300 rounded-xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
                       required
                     />
                   </div>
@@ -479,14 +480,15 @@ export default function GroupDetail() {
                           </span>
                         </p>
                         <p className="text-xl font-bold text-gray-800 mt-1">
-                          {balance.owedBy === user?._id
+                          {balance.owedBy === user?.id
                             ? `You owe ₹${balance.amount}`
-                            : balance.owedTo === user?._id
+                            : balance.owedTo === user?._id ||
+                                balance.owedTo === user?.id
                               ? `You will receive ₹${balance.amount}`
                               : `${getMemberName(balance.owedBy)} owes ${getMemberName(balance.owedTo)}`}
                         </p>
                       </div>
-                      {balance.owedBy?.toString() === (user?._id || user?.id)?.toString() && (
+                      {balance.owedBy === user?.id && (
                         <button
                           onClick={() => handleSettle(balance)}
                           className="bg-green-600 text-white w-full py-3 rounded-lg text-base hover:bg-green-700 transition text-sm font-medium"
@@ -503,14 +505,14 @@ export default function GroupDetail() {
         )}
       </div>
       {activeTab === "expenses" && (
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-3 pb-5 flex justify-end">
-        <button
-          onClick={() => setShowExpenseForm(true)}
-          className="bg-green-600 text-white px-6 py-3 rounded-full text-base font-medium shadow-lg"
-        >
-          + Add Expense
-        </button>
-      </div>
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-3 pb-5 flex justify-end">
+          <button
+            onClick={() => setShowExpenseForm(true)}
+            className="bg-green-600 text-white px-6 py-3 rounded-full text-base font-medium shadow-lg"
+          >
+            + Add Expense
+          </button>
+        </div>
       )}
     </div>
   );
