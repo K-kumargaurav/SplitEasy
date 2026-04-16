@@ -27,8 +27,12 @@ export default function GroupDetail() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!user) {
+      navigate("/login");
+      return;
+    }
     fetchAll();
-  }, [id]);
+  }, [id, user]);
 
   const fetchAll = async () => {
     try {
@@ -41,8 +45,12 @@ export default function GroupDetail() {
       if (groupRes.status === "fulfilled") setGroup(groupRes.value.data);
       if (expensesRes.status === "fulfilled")
         setExpenses(expensesRes.value.data);
+      if (expensesRes.status === "rejected")
+        setError("Failed to load expenses");
       if (balancesRes.status === "fulfilled")
         setBalances(balancesRes.value.data);
+      if (balancesRes.status === "rejected")
+        setError("Failed to load balances");
       if (groupRes.status === "rejected") setError("Failed to load group data");
     } catch (err) {
       setError("Failed to load group data");
@@ -52,7 +60,9 @@ export default function GroupDetail() {
   };
 
   const getMemberName = (userId) => {
-    const member = group?.members.find((m) => m._id === userId);
+    const member = group?.members.find(
+      (m) => m._id.toString() === userId.toString(),
+    );
     return member ? member.name : userId;
   };
 
@@ -78,7 +88,7 @@ export default function GroupDetail() {
         (sum, s) => sum + (parseFloat(s.share) || 0),
         0,
       );
-      if (Math.round(total) !== Math.round(parseFloat(newExpense.amount))) {
+      if (Math.abs(total - parseFloat(newExpense.amount)) > 0.01) {
         setError(
           `Custom splits must add up to ₹${newExpense.amount}. Currently: ₹${total}`,
         );
@@ -86,10 +96,14 @@ export default function GroupDetail() {
       }
     }
 
+    const amt = parseFloat(newExpense.amount);
+    if (!amt || amt <= 0 || amt > 1000000) {
+      return setError("Enter a valid amount (1 - 10,00,000)");
+    }
     try {
       await api.post(`/groups/${id}/expenses`, {
         description: newExpense.description,
-        amount: parseFloat(newExpense.amount),
+        amount: amt,
         splitType: newExpense.splitType,
         customSplits:
           newExpense.splitType === "custom"
@@ -99,6 +113,7 @@ export default function GroupDetail() {
               }))
             : undefined,
       });
+
       setNewExpense({ description: "", amount: "", splitType: "equal" });
       setCustomSplits([]);
       setShowExpenseForm(false);
@@ -107,7 +122,6 @@ export default function GroupDetail() {
       setError(err.response?.data?.message || "Failed to add expense");
     }
   };
-
   const handleSettle = async (balance) => {
     setError("");
     try {
@@ -145,7 +159,7 @@ export default function GroupDetail() {
           </h1>
         </div>
         <span className="text-gray-400 text-xs">
-          {group?.members.length} members
+          {group?.members.length || 0} members
         </span>
       </nav>
 
@@ -162,7 +176,7 @@ export default function GroupDetail() {
             <span className="text-sm font-medium text-gray-600">
               Members ({group?.members.length})
             </span>
-            {group?.createdBy._id === user?.id && (
+            {group?.createdBy?._id === (user?._id || user?.id) && (
               <button
                 onClick={() => setShowAddMember(!showAddMember)}
                 className="text-green-600 text-sm font-medium"
@@ -179,7 +193,7 @@ export default function GroupDetail() {
                 className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-medium"
               >
                 {member.name}
-                {member._id === user?.id && (
+                {(member._id === user?._id || member._id === user?.id) && (
                   <span className="ml-1 text-[10px] bg-black text-white px-2 py-0.5 rounded-full">
                     YOU
                   </span>
@@ -207,7 +221,10 @@ export default function GroupDetail() {
           {["expenses", "balances"].map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => {
+                setActiveTab(tab);
+                setError("");
+              }}
               className={`flex-1 py-3 rounded-md text-base font-medium transition ${
                 activeTab === tab
                   ? "bg-white shadow text-green-600"
@@ -255,7 +272,7 @@ export default function GroupDetail() {
                           description: e.target.value,
                         })
                       }
-                      className="w-full border border-gray-300 rounded-xl px-4 py-3.5 text-base focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
+                      className="w-full border border-gray-300 rounded-xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
                       required
                     />
                   </div>
@@ -265,6 +282,9 @@ export default function GroupDetail() {
                     </label>
                     <input
                       type="number"
+                      min="1"
+                      max="1000000"
+                      step="0.01"
                       inputMode="decimal"
                       placeholder="2000"
                       value={newExpense.amount}
@@ -286,7 +306,7 @@ export default function GroupDetail() {
                         setNewExpense({ ...newExpense, splitType: val });
                         if (val === "custom") {
                           setCustomSplits(
-                            group.members.map((m) => ({
+                            group?.members?.map((m) => ({
                               userId: m._id,
                               name: m.name,
                               share: "",
@@ -296,7 +316,7 @@ export default function GroupDetail() {
                           setCustomSplits([]);
                         }
                       }}
-                      className="w-full border border-gray-300 rounded-xl px-4 py-3.5 text-base focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
+                      className="w-full border border-gray-300 rounded-xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
                     >
                       <option value="equal">Equal Split</option>
                       <option value="custom">Custom Split</option>
@@ -459,12 +479,14 @@ export default function GroupDetail() {
                           </span>
                         </p>
                         <p className="text-xl font-bold text-gray-800 mt-1">
-                          {balance.owedBy === user.id
+                          {balance.owedBy === user?._id
                             ? `You owe ₹${balance.amount}`
-                            : `You will receive ₹${balance.amount}`}
+                            : balance.owedTo === user?._id
+                              ? `You will receive ₹${balance.amount}`
+                              : `${getMemberName(balance.owedBy)} owes ${getMemberName(balance.owedTo)}`}
                         </p>
                       </div>
-                      {balance.owedBy === user.id && (
+                      {balance.owedBy?.toString() === (user?._id || user?.id)?.toString() && (
                         <button
                           onClick={() => handleSettle(balance)}
                           className="bg-green-600 text-white w-full py-3 rounded-lg text-base hover:bg-green-700 transition text-sm font-medium"
@@ -480,6 +502,7 @@ export default function GroupDetail() {
           </div>
         )}
       </div>
+      {activeTab === "expenses" && (
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-3 pb-5 flex justify-end">
         <button
           onClick={() => setShowExpenseForm(true)}
@@ -488,6 +511,7 @@ export default function GroupDetail() {
           + Add Expense
         </button>
       </div>
+      )}
     </div>
   );
 }

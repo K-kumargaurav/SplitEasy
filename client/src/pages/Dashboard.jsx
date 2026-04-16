@@ -22,81 +22,78 @@ export default function Dashboard() {
   const notifRef = useRef(null);
 
   useEffect(() => {
-    if (!user) return;
+  if (!user) return;
 
-    //join user room
-    socket.emit("join", user.id);
+  socket.emit("join", user._id);
 
-    // listen for settlement notifications
-    socket.on("settlement_request", (data) => {
-      toast((t) => (
-        <div
-          onClick={() => {
-            navigate(`/groups/${data.groupId}`);
-            toast.dismiss(t.id);
-          }}
-          style={{
-            cursor: "pointer",
-            padding: "8px",
-          }}
-        >
-          💰 {data.message}
-        </div>
-      ));
-    });
+  // 🔥 settlement_request
+  const settlementRequestHandler = (data) => {
+    toast((t) => (
+      <div
+        onClick={() => {
+          navigate(`/groups/${data.groupId}`);
+          toast.dismiss(t.id);
+        }}
+        style={{ cursor: "pointer", padding: "8px" }}
+      >
+        💰 {data.message}
+      </div>
+    ));
+  };
 
-    // listen for updates
-    socket.on("settlement_update", (data) => {
-      toast((t) => (
-        <div
-          onClick={() => {
-            navigate("/dashboard");
-            toast.dismiss(t.id);
-          }}
-          style={{
-            cursor: "pointer",
-            padding: "8px",
-          }}
-        >
-          {data.status === "accepted"
-            ? "✅ Settlement accepted"
-            : "❌ Settlement rejected"}
-        </div>
-      ));
-    });
+  // 🔥 settlement_update
+  const settlementUpdateHandler = (data) => {
+    toast((t) => (
+      <div
+        onClick={() => {
+          navigate("/dashboard");
+          toast.dismiss(t.id);
+        }}
+        style={{ cursor: "pointer", padding: "8px" }}
+      >
+        {data.status === "accepted"
+          ? "✅ Settlement accepted"
+          : "❌ Settlement rejected"}
+      </div>
+    ));
+  };
 
-    // invite notifications
-    socket.on("new_invite", (data) => {
-      toast((t) => (
-        <div
-          onClick={() => {
-            navigate(`/groups/${data.groupId}`);
-            toast.dismiss(t.id);
-          }}
-          style={{
-            cursor: "pointer",
-            padding: "8px",
-          }}
-        >
-          📩 New invite — Click to open
-        </div>
-      ));
-    });
+  // 🔥 new_invite
+  const newInviteHandler = (data) => {
+    toast((t) => (
+      <div
+        onClick={() => {
+          navigate(`/groups/${data.groupId}`);
+          toast.dismiss(t.id);
+        }}
+        style={{ cursor: "pointer", padding: "8px" }}
+      >
+        📩 New invite — Click to open
+      </div>
+    ));
+  };
 
-    return () => {
-      socket.off("settlement_request");
-      socket.off("settlement_update");
-      socket.off("new_invite");
-      socket.emit("leave", user.id);
-    };
-  }, [user]);
+  // attach
+  socket.on("settlement_request", settlementRequestHandler);
+  socket.on("settlement_update", settlementUpdateHandler);
+  socket.on("new_invite", newInviteHandler);
+
+  // cleanup
+  return () => {
+    socket.off("settlement_request", settlementRequestHandler);
+    socket.off("settlement_update", settlementUpdateHandler);
+    socket.off("new_invite", newInviteHandler);
+  };
+}, [user]);
 
   useEffect(() => {
+    if (!user?._id) return;
+
     fetchGroups();
     fetchInvites();
     fetchNotifications();
     fetchPendingSettlements();
-  }, []);
+  }, [user]);
 
   const fetchInvites = async () => {
     try {
