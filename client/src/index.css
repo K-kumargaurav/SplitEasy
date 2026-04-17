@@ -1,1 +1,27 @@
 @import "tailwindcss";
+
+/* ── Reset tap highlight on all interactive elements ── */
+* {
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+}
+
+/* ── System font stack (Telegram / iOS feel) ── */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #efeff4;
+  overscroll-behavior-y: none;
+}
+
+/* ── Bottom sheet modal — prevents inner scroll from bouncing the page ── */
+.sheet {
+  overscroll-behavior: contain;
+}
+
+/* ── Safe area bottom padding for notched phones ── */
+.pb-safe {
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+}

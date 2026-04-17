@@ -1,106 +1,152 @@
 import { useState } from "react";
-import { useAuth } from "../context/AuthContext";
-import { useNavigate, Link } from "react-router-dom";
-import api from "../utils/api";
+import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import api from "../utils/api";
+
+/* ─────────────────────────────────────────
+   Small reusable pieces (local to this file)
+───────────────────────────────────────── */
+
+function InputField({ label, error, ...props }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-600 mb-1.5">
+        {label}
+      </label>
+      <input
+        className="w-full h-12 bg-white border border-gray-200 rounded-xl px-4
+                   text-base text-gray-900 placeholder-gray-400
+                   focus:outline-none focus:border-emerald-500 focus:ring-2
+                   focus:ring-emerald-500/20 transition"
+        {...props}
+      />
+      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+    </div>
+  );
+}
+
+function PrimaryButton({ loading, children, ...props }) {
+  return (
+    <button
+      className="w-full h-12 bg-emerald-500 active:bg-emerald-600 text-white
+                 rounded-xl text-base font-semibold transition
+                 disabled:opacity-50 disabled:cursor-not-allowed select-none
+                 touch-manipulation"
+      disabled={loading}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
+/* ─────────────────────────────────────────
+   Login Page
+───────────────────────────────────────── */
 
 export default function Login() {
-  const [form, setForm] = useState({ email: "", password: "" });
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [form, setForm]             = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError]           = useState("");
+  const [loading, setLoading]       = useState(false);
 
-  const { login } = useAuth();
-  const navigate = useNavigate();
+  const { login }  = useAuth();
+  const navigate   = useNavigate();
+
+  const handleChange = (field) => (e) =>
+    setForm((prev) => ({ ...prev, [field]: e.target.value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
     try {
-      const res = await api.post("/auth/login", form);
-      login(res.data.user, res.data.token);
+      const { data } = await api.post("/auth/login", form);
+      login(data.user, data.token);
       navigate("/dashboard");
     } catch (err) {
-      setError(err.response?.data?.message || "Login failed");
+      setError(err.response?.data?.message || "Login failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-emerald-600 via-green-500 to-teal-500 flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-sm">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-white/20 backdrop-blur rounded-2xl mb-4 shadow-lg">
-            <span className="text-3xl">💸</span>
-          </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">SplitEasy</h1>
-          <p className="text-emerald-100 text-sm mt-1">Split smarter, not harder</p>
+    <div className="min-h-screen bg-[#efeff4] flex flex-col items-center justify-center px-4 py-10">
+
+      {/* Brand */}
+      <div className="mb-8 text-center select-none">
+        <div className="w-20 h-20 mx-auto mb-4 rounded-[28px] bg-emerald-500
+                        flex items-center justify-center shadow-lg shadow-emerald-200">
+          <span className="text-4xl">💸</span>
         </div>
+        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">SplitEasy</h1>
+        <p className="text-sm text-gray-500 mt-1">Split bills, not friendships</p>
+      </div>
 
-        {/* Card */}
-        <div className="bg-white rounded-3xl shadow-2xl p-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-1">Welcome back</h2>
-          <p className="text-gray-500 text-sm mb-6">Sign in to your account</p>
+      {/* Form card */}
+      <div className="w-full max-w-sm bg-white rounded-2xl shadow-sm overflow-hidden">
 
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl mb-5 text-sm flex items-center gap-2">
-              <span>⚠️</span> {error}
-            </div>
-          )}
+        {/* Error banner */}
+        {error && (
+          <div className="bg-red-50 border-b border-red-100 px-4 py-3 flex items-center gap-2">
+            <span className="text-red-500 text-sm">⚠</span>
+            <p className="text-red-600 text-sm">{error}</p>
+          </div>
+        )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Email</label>
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <InputField
+            label="Email"
+            type="email"
+            placeholder="you@example.com"
+            value={form.email}
+            onChange={handleChange("email")}
+            autoComplete="email"
+            autoFocus
+            required
+          />
+
+          {/* Password with show/hide toggle */}
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1.5">
+              Password
+            </label>
+            <div className="relative">
               <input
-                type="email"
-                placeholder="you@example.com"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="w-full border border-gray-200 bg-gray-50 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white focus:border-transparent transition text-base"
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••••"
+                value={form.password}
+                onChange={handleChange("password")}
+                autoComplete="current-password"
                 required
-                autoComplete="email"
-                autoFocus
+                className="w-full h-12 bg-white border border-gray-200 rounded-xl
+                           px-4 pr-12 text-base text-gray-900 placeholder-gray-400
+                           focus:outline-none focus:border-emerald-500 focus:ring-2
+                           focus:ring-emerald-500/20 transition"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2
+                           text-gray-400 hover:text-gray-600 transition p-1"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Password</label>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
-                  value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  className="w-full border border-gray-200 bg-gray-50 rounded-xl px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white focus:border-transparent transition text-base"
-                  required
-                  autoComplete="current-password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-linear-to-r from-emerald-500 to-green-600 text-white py-3.5 rounded-xl font-semibold shadow-lg hover:shadow-xl hover:from-emerald-600 hover:to-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-base mt-1"
-            >
-              {loading ? "Signing in..." : "Sign In"}
-            </button>
-          </form>
+          </div>
 
-          <p className="text-center text-gray-500 text-sm mt-6">
-            Don't have an account?{" "}
-            <Link to="/register" className="text-emerald-600 font-semibold hover:underline">
-              Register
-            </Link>
-          </p>
+          <PrimaryButton loading={loading}>
+            {loading ? "Signing in…" : "Sign In"}
+          </PrimaryButton>
+        </form>
+
+        <div className="border-t border-gray-100 px-5 py-4 text-center text-sm text-gray-500">
+          Don't have an account?{" "}
+          <Link to="/register" className="text-emerald-600 font-semibold">
+            Register
+          </Link>
         </div>
       </div>
     </div>

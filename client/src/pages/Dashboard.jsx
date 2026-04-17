@@ -6,71 +6,141 @@ import MemberSearch from "../components/MemberSearch";
 import socket from "../utils/socket";
 import toast from "react-hot-toast";
 
-function Avatar({ name, size = "md" }) {
-  const initials = name?.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
-  const colors = ["from-emerald-400 to-teal-500", "from-violet-400 to-purple-500", "from-orange-400 to-rose-500", "from-blue-400 to-cyan-500", "from-pink-400 to-fuchsia-500"];
-  const color = colors[name?.charCodeAt(0) % colors.length] || colors[0];
-  const sz = size === "sm" ? "w-8 h-8 text-xs" : size === "lg" ? "w-12 h-12 text-lg" : "w-10 h-10 text-sm";
+/* ─────────────────────────────────────────
+   Local UI components
+───────────────────────────────────────── */
+
+/** Circular avatar with initials, color derived from name */
+function Avatar({ name = "?", size = 40 }) {
+  const COLORS = [
+    "bg-emerald-500", "bg-violet-500", "bg-orange-500",
+    "bg-sky-500",     "bg-pink-500",   "bg-amber-500",
+  ];
+  const color    = COLORS[name.charCodeAt(0) % COLORS.length];
+  const initials = name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+
   return (
-    <div className={`${sz} rounded-full bg-linear-to-br ${color} flex items-center justify-center text-white font-bold shrink-0`}>
+    <div
+      style={{ width: size, height: size, fontSize: size * 0.38 }}
+      className={`${color} rounded-full flex items-center justify-center
+                  text-white font-bold shrink-0 select-none`}
+    >
       {initials}
     </div>
   );
 }
 
+/** Section label with optional right-side action */
+function SectionHeader({ title, action }) {
+  return (
+    <div className="flex items-center justify-between px-4 mb-1">
+      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+        {title}
+      </span>
+      {action}
+    </div>
+  );
+}
+
+/** Grouped list wrapper — white card with dividers between children */
+function ListGroup({ children }) {
+  return (
+    <div className="bg-white rounded-2xl overflow-hidden divide-y divide-gray-100 shadow-sm">
+      {children}
+    </div>
+  );
+}
+
+/** Bottom sheet modal — slides up from bottom */
+function BottomSheet({ open, onClose, title, children }) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col justify-end">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+
+      {/* Sheet */}
+      <div className="relative bg-white rounded-t-3xl sheet max-h-[92vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <h2 className="text-base font-semibold text-gray-900">{title}</h2>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-full
+                       bg-gray-100 text-gray-500 active:bg-gray-200 transition"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="p-5 pb-safe">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────
+   Dashboard Page
+───────────────────────────────────────── */
+
 export default function Dashboard() {
+  /* ── Auth ── */
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const [groups, setGroups] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newGroup, setNewGroup] = useState({ name: "", description: "" });
-  const [error, setError] = useState("");
-  const [selectedMembers, setSelectedMembers] = useState([]);
-  const [invites, setInvites] = useState([]);
-  const [notifications, setNotifications] = useState([]);
-  const [showNotifications, setShowNotifications] = useState(false);
+  const navigate         = useNavigate();
+
+  /* ── Data ── */
+  const [groups,             setGroups]             = useState([]);
+  const [invites,            setInvites]            = useState([]);
+  const [notifications,      setNotifications]      = useState([]);
   const [pendingSettlements, setPendingSettlements] = useState([]);
+
+  /* ── UI state ── */
+  const [loading,          setLoading]          = useState(true);
+  const [showCreateForm,   setShowCreateForm]   = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [error,            setError]            = useState("");
+
+  /* ── New group form ── */
+  const [newGroup,         setNewGroup]         = useState({ name: "", description: "" });
+  const [selectedMembers,  setSelectedMembers]  = useState([]);
+
   const notifRef = useRef(null);
 
+  /* ─── Socket setup ─── */
   useEffect(() => {
     if (!user?._id) return;
+
     socket.emit("join", user._id);
 
-    const settlementRequestHandler = (data) => {
-      toast((t) => (
-        <div onClick={() => { navigate(`/groups/${data.groupId}`); toast.dismiss(t.id); }} style={{ cursor: "pointer", padding: "8px" }}>
+    const onSettlementRequest = (data) =>
+      toast(() => (
+        <span
+          className="cursor-pointer"
+          onClick={() => navigate(`/groups/${data.groupId}`)}
+        >
           💰 {data.message}
-        </div>
+        </span>
       ));
-    };
-    const settlementUpdateHandler = (data) => {
-      toast((t) => (
-        <div onClick={() => { navigate("/dashboard"); toast.dismiss(t.id); }} style={{ cursor: "pointer", padding: "8px" }}>
-          {data.status === "accepted" ? "✅ Settlement accepted" : "❌ Settlement rejected"}
-        </div>
-      ));
-    };
-    const newInviteHandler = (data) => {
-      toast((t) => (
-        <div onClick={() => { navigate(`/groups/${data.groupId}`); toast.dismiss(t.id); }} style={{ cursor: "pointer", padding: "8px" }}>
-          📩 New invite — Click to open
-        </div>
-      ));
+
+    const onSettlementUpdate = (data) =>
+      toast(data.status === "accepted" ? "✅ Settlement accepted" : "❌ Settlement rejected");
+
+    const onNewInvite = () => {
+      fetchInvites();
+      toast("📩 New group invite received");
     };
 
-    socket.on("settlement_request", settlementRequestHandler);
-    socket.on("settlement_update", settlementUpdateHandler);
-    socket.on("new_invite", newInviteHandler);
+    socket.on("settlement_request", onSettlementRequest);
+    socket.on("settlement_update",  onSettlementUpdate);
+    socket.on("new_invite",         onNewInvite);
 
     return () => {
-      socket.off("settlement_request", settlementRequestHandler);
-      socket.off("settlement_update", settlementUpdateHandler);
-      socket.off("new_invite", newInviteHandler);
+      socket.off("settlement_request", onSettlementRequest);
+      socket.off("settlement_update",  onSettlementUpdate);
+      socket.off("new_invite",         onNewInvite);
       socket.disconnect();
     };
   }, [user?._id]);
 
+  /* ─── Initial data fetch ─── */
   useEffect(() => {
     if (!user?._id) return;
     fetchGroups();
@@ -79,10 +149,51 @@ export default function Dashboard() {
     fetchPendingSettlements();
   }, [user]);
 
+  /* ─── Click-outside to close notifications ─── */
+  useEffect(() => {
+    const handler = (e) => {
+      if (notifRef.current && !notifRef.current.contains(e.target))
+        setShowNotifications(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  /* ─────── API helpers ─────── */
+
+  const fetchGroups = async () => {
+    try {
+      const { data } = await api.get("/groups");
+      setGroups(data);
+    } catch {
+      setError("Failed to load groups");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchInvites = async () => {
     try {
-      const res = await api.get("/groups/invites/pending");
-      setInvites(res.data);
+      const { data } = await api.get("/groups/invites/pending");
+      setInvites(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchNotifications = async () => {
+    try {
+      const { data } = await api.get("/users/notifications");
+      setNotifications(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchPendingSettlements = async () => {
+    try {
+      const { data } = await api.get("/settlements/pending");
+      setPendingSettlements(data);
     } catch (err) {
       console.error(err);
     }
@@ -98,38 +209,19 @@ export default function Dashboard() {
     }
   };
 
-  const fetchGroups = async () => {
+  const handleSettlementResponse = async (settlementId, status) => {
     try {
-      const res = await api.get("/groups");
-      setGroups(res.data);
+      await api.put(`/settlements/${settlementId}/respond`, { status });
+      setPendingSettlements((prev) => prev.filter((s) => s._id !== settlementId));
+      toast.success(status === "accepted" ? "Settlement confirmed!" : "Settlement rejected");
     } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+      setError(err.response?.data?.message || "Failed to respond");
     }
   };
-
-  const fetchNotifications = async () => {
-    try {
-      const res = await api.get("/users/notifications");
-      setNotifications(res.data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleNotificationClick = async () => {
-    setShowNotifications(!showNotifications);
-    if (!showNotifications && unreadCount > 0) {
-      await api.put("/users/notifications/read");
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    }
-  };
-
-  const unreadCount = notifications.filter((n) => !n.read).length;
 
   const handleCreateGroup = async (e) => {
     e.preventDefault();
+    setError("");
     try {
       await api.post("/groups", {
         ...newGroup,
@@ -144,303 +236,405 @@ export default function Dashboard() {
     }
   };
 
-  const fetchPendingSettlements = async () => {
-    try {
-      const res = await api.get("/settlements/pending");
-      setPendingSettlements(res.data);
-    } catch (err) {
-      console.error(err);
+  const handleNotificationClick = async () => {
+    setShowNotifications((v) => !v);
+    const unread = notifications.filter((n) => !n.read).length;
+    if (!showNotifications && unread > 0) {
+      await api.put("/users/notifications/read");
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     }
   };
-
-  const handleSettlementResponse = async (settlementId, status) => {
-    try {
-      await api.put(`/settlements/${settlementId}/respond`, { status });
-      setPendingSettlements((prev) => prev.filter((s) => s._id !== settlementId));
-      toast.success(status === "accepted" ? "Settlement confirmed!" : "Settlement rejected");
-    } catch (err) {
-      setError(err.response?.data?.message || "Failed to respond");
-    }
-  };
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (notifRef.current && !notifRef.current.contains(e.target)) {
-        setShowNotifications(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
 
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  /* ─────────────────────────────────────────
+     Render
+  ───────────────────────────────────────── */
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navbar */}
-      <nav className="bg-white border-b border-gray-100 px-4 py-3 flex justify-between items-center sticky top-0 z-10 shadow-sm">
-        <div className="flex items-center gap-2">
-          <span className="text-xl">💸</span>
-          <h1 className="text-xl font-bold bg-linear-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent">
-            SplitEasy
-          </h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-gray-500 text-sm hidden sm:block font-medium">
-            Hey, {user?.name}!
-          </span>
+    <div className="min-h-screen bg-[#efeff4]">
 
-          {/* Notification Bell */}
-          <div className="relative" ref={notifRef}>
-            <button
-              onClick={handleNotificationClick}
-              className="relative p-2.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
-              {unreadCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
-                  {unreadCount}
-                </span>
-              )}
-            </button>
+      {/* ── Top navigation bar ── */}
+      <header className="sticky top-0 z-10 bg-white/90 backdrop-blur
+                         border-b border-gray-200/60 shadow-sm">
+        <div className="max-w-lg mx-auto h-14 px-4 flex items-center justify-between">
 
-            {showNotifications && (
-              <div className="absolute right-0 top-12 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 z-20 overflow-hidden">
-                <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
-                  <p className="font-semibold text-gray-800 text-sm">Notifications</p>
-                </div>
-                {notifications.length === 0 ? (
-                  <p className="text-gray-400 text-sm p-6 text-center">No notifications yet</p>
-                ) : (
-                  <div className="max-h-72 overflow-y-auto divide-y divide-gray-50">
-                    {notifications.map((n, i) => (
-                      <div key={i} className={`px-4 py-3 text-sm ${!n.read ? "bg-emerald-50" : ""}`}>
-                        <p className="text-gray-700">{n.message}</p>
-                        <p className="text-gray-400 text-xs mt-1">
-                          {new Date(n.createdAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+          {/* Brand */}
+          <div className="flex items-center gap-2 select-none">
+            <span className="text-xl">💸</span>
+            <span className="text-lg font-bold text-gray-900 tracking-tight">SplitEasy</span>
           </div>
 
-          <button
-            onClick={handleLogout}
-            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-xl text-sm font-semibold transition"
-          >
-            Logout
-          </button>
-        </div>
-      </nav>
+          {/* Right actions */}
+          <div className="flex items-center gap-1">
 
-      <div className="max-w-2xl mx-auto px-4 py-6 pb-24 space-y-5">
+            {/* Notification bell */}
+            <div className="relative" ref={notifRef}>
+              <button
+                onClick={handleNotificationClick}
+                className="relative w-10 h-10 flex items-center justify-center
+                           rounded-full hover:bg-gray-100 active:bg-gray-200
+                           transition touch-manipulation"
+              >
+                <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6
+                           6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6
+                           0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 w-4 h-4 bg-red-500
+                                   text-white text-[10px] font-bold rounded-full
+                                   flex items-center justify-center">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </button>
 
-        {/* Pending Settlements */}
-        {pendingSettlements.length > 0 && (
-          <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-              Settlement Requests ({pendingSettlements.length})
-            </p>
-            <div className="space-y-3">
-              {pendingSettlements.map((s) => (
-                <div key={s._id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    <Avatar name={s.paidBy.name} size="sm" />
-                    <div>
-                      <p className="font-semibold text-gray-800 text-sm">{s.paidBy.name} wants to pay you</p>
-                      <p className="text-xs text-gray-400">{s.group.name}</p>
+              {/* Notification dropdown */}
+              {showNotifications && (
+                <div className="absolute right-0 top-12 w-80 bg-white rounded-2xl
+                                shadow-xl border border-gray-100 overflow-hidden z-20">
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <p className="font-semibold text-gray-900 text-sm">Notifications</p>
+                  </div>
+                  {notifications.length === 0 ? (
+                    <p className="text-center text-gray-400 text-sm py-8">
+                      Nothing here yet
+                    </p>
+                  ) : (
+                    <div className="max-h-72 overflow-y-auto divide-y divide-gray-50">
+                      {notifications.map((n, i) => (
+                        <div
+                          key={i}
+                          className={`px-4 py-3 ${!n.read ? "bg-emerald-50/60" : ""}`}
+                        >
+                          <p className="text-sm text-gray-700">{n.message}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {new Date(n.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                      ))}
                     </div>
-                    <span className="ml-auto text-xl font-bold text-emerald-600">₹{s.amount / 100}</span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* User avatar — taps to log out */}
+            <button
+              onClick={handleLogout}
+              className="touch-manipulation select-none"
+              title="Logout"
+            >
+              <Avatar name={user?.name} size={36} />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* ── Scrollable content ── */}
+      <main className="max-w-lg mx-auto px-4 py-5 pb-32 space-y-6">
+
+        {/* Error banner */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3
+                          text-sm text-red-600 flex items-center gap-2">
+            <span>⚠</span> {error}
+          </div>
+        )}
+
+        {/* ── Settlement Requests ── */}
+        {pendingSettlements.length > 0 && (
+          <section>
+            <SectionHeader title={`Settlement Requests (${pendingSettlements.length})`} />
+            <ListGroup>
+              {pendingSettlements.map((s) => (
+                <div key={s._id} className="p-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <Avatar name={s.paidBy.name} size={40} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">
+                        {s.paidBy.name} wants to pay you
+                      </p>
+                      <p className="text-xs text-gray-400 truncate">{s.group.name}</p>
+                    </div>
+                    <span className="text-base font-bold text-emerald-600 shrink-0">
+                      ₹{s.amount / 100}
+                    </span>
                   </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleSettlementResponse(s._id, "accepted")}
-                      className="flex-1 bg-linear-to-r from-emerald-500 to-green-600 text-white py-2.5 rounded-xl text-sm font-semibold hover:opacity-90 transition"
+                      className="flex-1 h-10 bg-emerald-500 active:bg-emerald-600
+                                 text-white text-sm font-semibold rounded-xl
+                                 transition touch-manipulation select-none"
                     >
                       Confirm ✓
                     </button>
                     <button
                       onClick={() => handleSettlementResponse(s._id, "rejected")}
-                      className="flex-1 bg-gray-100 text-gray-600 py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-200 transition"
+                      className="flex-1 h-10 bg-gray-100 active:bg-gray-200
+                                 text-gray-700 text-sm font-semibold rounded-xl
+                                 transition touch-manipulation select-none"
                     >
                       Reject
                     </button>
                   </div>
                 </div>
               ))}
-            </div>
-          </div>
+            </ListGroup>
+          </section>
         )}
 
-        {/* Pending Invites */}
+        {/* ── Pending Invites ── */}
         {invites.length > 0 && (
-          <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-              Pending Invites ({invites.length})
-            </p>
-            <div className="space-y-3">
+          <section>
+            <SectionHeader title={`Invites (${invites.length})`} />
+            <ListGroup>
               {invites.map((invite) => (
-                <div key={invite.groupId} className="bg-white rounded-2xl border border-amber-100 shadow-sm p-4">
+                <div key={invite.groupId} className="p-4">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center text-lg shrink-0">👥</div>
-                    <div>
-                      <p className="font-semibold text-gray-800 text-sm">{invite.groupName}</p>
-                      <p className="text-xs text-gray-400">Invited by <span className="text-emerald-600 font-medium">{invite.invitedBy.name}</span></p>
-                      {invite.description && <p className="text-xs text-gray-400 mt-0.5">{invite.description}</p>}
+                    <div className="w-10 h-10 rounded-full bg-amber-100
+                                    flex items-center justify-center text-lg shrink-0">
+                      👥
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">
+                        {invite.groupName}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        from{" "}
+                        <span className="text-emerald-600 font-medium">
+                          {invite.invitedBy.name}
+                        </span>
+                      </p>
+                      {invite.description && (
+                        <p className="text-xs text-gray-400 truncate mt-0.5">
+                          {invite.description}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleInviteResponse(invite.groupId, "accepted")}
-                      className="flex-1 bg-linear-to-r from-emerald-500 to-green-600 text-white py-2.5 rounded-xl text-sm font-semibold hover:opacity-90 transition"
+                      className="flex-1 h-10 bg-emerald-500 active:bg-emerald-600
+                                 text-white text-sm font-semibold rounded-xl
+                                 transition touch-manipulation select-none"
                     >
                       Accept
                     </button>
                     <button
                       onClick={() => handleInviteResponse(invite.groupId, "rejected")}
-                      className="flex-1 bg-gray-100 text-gray-600 py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-200 transition"
+                      className="flex-1 h-10 bg-gray-100 active:bg-gray-200
+                                 text-gray-700 text-sm font-semibold rounded-xl
+                                 transition touch-manipulation select-none"
                     >
                       Decline
                     </button>
                   </div>
                 </div>
               ))}
-            </div>
-          </div>
+            </ListGroup>
+          </section>
         )}
 
-        {/* Groups */}
-        <div>
-          <div className="flex justify-between items-center mb-3">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Your Groups</p>
-            <button
-              onClick={() => { setError(""); setShowCreateForm(true); }}
-              className="bg-linear-to-r from-emerald-500 to-green-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:opacity-90 transition shadow-sm"
-            >
-              + New Group
-            </button>
-          </div>
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl mb-4 text-sm">{error}</div>
-          )}
+        {/* ── Groups ── */}
+        <section>
+          <SectionHeader
+            title="Your Groups"
+            action={
+              <button
+                onClick={() => { setError(""); setShowCreateForm(true); }}
+                className="text-sm text-emerald-600 font-semibold
+                           touch-manipulation select-none"
+              >
+                + New
+              </button>
+            }
+          />
 
           {loading ? (
-            <div className="flex justify-center py-16">
-              <div className="w-8 h-8 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
-            </div>
-          ) : groups.length === 0 ? (
-            <div className="text-center py-20 bg-white rounded-2xl border border-gray-100">
-              <p className="text-5xl mb-3">💸</p>
-              <p className="text-gray-700 font-semibold">No groups yet</p>
-              <p className="text-gray-400 text-sm mt-1">Create a group to start splitting expenses</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {groups.map((group) => (
-                <div
-                  key={group._id}
-                  onClick={() => navigate(`/groups/${group._id}`)}
-                  className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-4 cursor-pointer hover:shadow-md hover:border-emerald-100 active:scale-[0.99] transition-all duration-150"
-                >
-                  <div className="w-12 h-12 rounded-2xl bg-linear-to-br from-emerald-50 to-teal-100 flex items-center justify-center text-xl shrink-0">
-                    👥
+            /* Skeleton placeholders */
+            <ListGroup>
+              {[1, 2, 3].map((n) => (
+                <div key={n} className="flex items-center gap-3 px-4 py-3.5 animate-pulse">
+                  <div className="w-10 h-10 rounded-full bg-gray-200 shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3.5 bg-gray-200 rounded w-32" />
+                    <div className="h-3 bg-gray-100 rounded w-20" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-900 truncate">{group.name}</h3>
-                    {group.description && (
-                      <p className="text-gray-400 text-sm truncate mt-0.5">{group.description}</p>
-                    )}
-                    <p className="text-xs text-gray-400 mt-1">
-                      {group.members.length} member{group.members.length !== 1 ? "s" : ""}
-                    </p>
-                  </div>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
                 </div>
               ))}
+            </ListGroup>
+          ) : groups.length === 0 ? (
+            <div className="bg-white rounded-2xl shadow-sm py-16 text-center">
+              <p className="text-4xl mb-3">💸</p>
+              <p className="text-gray-700 font-semibold text-base">No groups yet</p>
+              <p className="text-gray-400 text-sm mt-1">
+                Create one and start splitting
+              </p>
+              <button
+                onClick={() => setShowCreateForm(true)}
+                className="mt-4 px-5 h-10 bg-emerald-500 active:bg-emerald-600
+                           text-white text-sm font-semibold rounded-xl
+                           transition touch-manipulation select-none"
+              >
+                + Create Group
+              </button>
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* Create Group Modal */}
-      {showCreateForm && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div className="flex justify-between items-center p-6 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-gray-900">Create Group</h2>
-              <button onClick={() => setShowCreateForm(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 transition">✕</button>
-            </div>
-
-            {error && (
-              <div className="mx-6 mt-4 bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl text-sm">{error}</div>
-            )}
-
-            <form onSubmit={handleCreateGroup} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Group Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Goa Trip, Room Rent..."
-                  value={newGroup.name}
-                  onChange={(e) => setNewGroup({ ...newGroup, name: e.target.value })}
-                  className="w-full border border-gray-200 bg-gray-50 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition text-base"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Notes <span className="text-gray-400 font-normal">(optional)</span></label>
-                <input
-                  type="text"
-                  placeholder="Purpose, dates, activities..."
-                  value={newGroup.description}
-                  onChange={(e) => setNewGroup({ ...newGroup, description: e.target.value })}
-                  className="w-full border border-gray-200 bg-gray-50 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition text-base"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Invite Members</label>
-                <MemberSearch
-                  onAdd={(u) => setSelectedMembers((prev) => [...prev, u])}
-                  existingMembers={selectedMembers}
-                />
-                {selectedMembers.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {selectedMembers.map((member) => (
-                      <span key={member._id} className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-full text-sm font-medium">
-                        {member.name}
-                        <button
-                          type="button"
-                          onClick={() => setSelectedMembers((prev) => prev.filter((m) => m._id !== member._id))}
-                          className="text-emerald-400 hover:text-red-500 transition"
-                        >×</button>
-                      </span>
-                    ))}
+          ) : (
+            <ListGroup>
+              {groups.map((group) => (
+                <button
+                  key={group._id}
+                  onClick={() => navigate(`/groups/${group._id}`)}
+                  className="w-full flex items-center gap-3 px-4 py-3.5
+                             active:bg-gray-50 transition text-left
+                             touch-manipulation select-none"
+                >
+                  {/* Group icon */}
+                  <div className="w-11 h-11 rounded-full bg-emerald-100
+                                  flex items-center justify-center text-xl shrink-0">
+                    👥
                   </div>
-                )}
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button type="submit" className="flex-1 bg-linear-to-r from-emerald-500 to-green-600 text-white py-3 rounded-xl font-semibold hover:opacity-90 transition shadow-sm">
-                  Create
+
+                  {/* Group info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-base font-medium text-gray-900 truncate">
+                      {group.name}
+                    </p>
+                    <p className="text-sm text-gray-400 truncate">
+                      {group.description || `${group.members.length} members`}
+                    </p>
+                  </div>
+
+                  {/* Member count + chevron */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {group.description && (
+                      <span className="text-xs text-gray-400">
+                        {group.members.length}
+                      </span>
+                    )}
+                    <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
                 </button>
-                <button type="button" onClick={() => setShowCreateForm(false)} className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-200 transition">
-                  Cancel
-                </button>
-              </div>
-            </form>
+              ))}
+            </ListGroup>
+          )}
+        </section>
+      </main>
+
+      {/* ── Create Group Bottom Sheet ── */}
+      <BottomSheet
+        open={showCreateForm}
+        onClose={() => setShowCreateForm(false)}
+        title="Create Group"
+      >
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3
+                          text-sm text-red-600 mb-4">
+            {error}
           </div>
-        </div>
-      )}
+        )}
+        <form onSubmit={handleCreateGroup} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1.5">
+              Group Name
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Goa Trip, Monthly Rent…"
+              value={newGroup.name}
+              onChange={(e) => setNewGroup({ ...newGroup, name: e.target.value })}
+              className="w-full h-12 bg-gray-50 border border-gray-200 rounded-xl
+                         px-4 text-base focus:outline-none focus:border-emerald-500
+                         focus:ring-2 focus:ring-emerald-500/20 transition"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1.5">
+              Notes{" "}
+              <span className="text-gray-400 font-normal">(optional)</span>
+            </label>
+            <input
+              type="text"
+              placeholder="Purpose, dates, etc."
+              value={newGroup.description}
+              onChange={(e) => setNewGroup({ ...newGroup, description: e.target.value })}
+              className="w-full h-12 bg-gray-50 border border-gray-200 rounded-xl
+                         px-4 text-base focus:outline-none focus:border-emerald-500
+                         focus:ring-2 focus:ring-emerald-500/20 transition"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1.5">
+              Invite Members
+            </label>
+            <MemberSearch
+              onAdd={(u) => setSelectedMembers((prev) => [...prev, u])}
+              existingMembers={selectedMembers}
+            />
+
+            {selectedMembers.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                {selectedMembers.map((member) => (
+                  <span
+                    key={member._id}
+                    className="flex items-center gap-1.5 bg-emerald-50
+                               border border-emerald-200 text-emerald-700
+                               px-3 py-1 rounded-full text-sm font-medium"
+                  >
+                    {member.name}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedMembers((prev) =>
+                          prev.filter((m) => m._id !== member._id)
+                        )
+                      }
+                      className="text-emerald-400 hover:text-red-500 transition
+                                 leading-none touch-manipulation"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-3 pt-1">
+            <button
+              type="submit"
+              className="flex-1 h-12 bg-emerald-500 active:bg-emerald-600
+                         text-white font-semibold rounded-xl transition
+                         touch-manipulation select-none"
+            >
+              Create
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowCreateForm(false)}
+              className="flex-1 h-12 bg-gray-100 active:bg-gray-200
+                         text-gray-700 font-semibold rounded-xl transition
+                         touch-manipulation select-none"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </BottomSheet>
     </div>
   );
 }
