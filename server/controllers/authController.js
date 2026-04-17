@@ -37,7 +37,7 @@ const register = async(req, res) => {
             message: "User registered successfully",
             token: generateToken(user._id),
             user: {
-                id: user._id,
+                _id: user._id,
                 name: user.name,
                 email: user.email
             }
@@ -68,7 +68,7 @@ const login = async(req, res) => {
             message: "Login successful",
             token: generateToken(user._id),
             user: {
-                id: user._id,
+                _id: user._id,
                 name: user.name,
                 email: user.email
             }

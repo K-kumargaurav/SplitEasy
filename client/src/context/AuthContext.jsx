@@ -41,7 +41,7 @@ export const AuthProvider = ({ children }) => {
         window.addEventListener("storage", handleStorageChange);
 
         return () => window.removeEventListener("storage", handleStorageChange);
-    }, [token]);
+    }, []);
 
     const login = (userData, authToken) => {
         setUser(userData);

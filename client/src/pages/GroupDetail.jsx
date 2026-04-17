@@ -177,7 +177,7 @@ export default function GroupDetail() {
             <span className="text-sm font-medium text-gray-600">
               Members ({group?.members.length})
             </span>
-            {group?.createdBy?._id === (user?._id || user?.id) && (
+            {group?.createdBy?._id === user?._id && (
               <button
                 onClick={() => setShowAddMember(!showAddMember)}
                 className="text-green-600 text-sm font-medium"
@@ -194,7 +194,7 @@ export default function GroupDetail() {
                 className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-medium"
               >
                 {member.name}
-                {(member._id === user?._id || member._id === user?.id) && (
+                {member._id === user?._id && (
                   <span className="ml-1 text-[10px] bg-black text-white px-2 py-0.5 rounded-full">
                     YOU
                   </span>
@@ -423,7 +423,7 @@ export default function GroupDetail() {
                         </p>
                       </div>
                       <span className="text-lg font-bold text-gray-800">
-                        ₹{expense.amount}
+                        ₹{(expense.amount / 100).toFixed(2)}
                       </span>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
@@ -436,7 +436,7 @@ export default function GroupDetail() {
                               : "bg-red-100 text-red-600"
                           }`}
                         >
-                          {split.user.name}: ₹{split.share}{" "}
+                          {split.user.name}: ₹{(split.share / 100).toFixed(2)}{" "}
                           {split.paid ? "✓" : "✗"}
                         </span>
                       ))}
@@ -480,15 +480,14 @@ export default function GroupDetail() {
                           </span>
                         </p>
                         <p className="text-xl font-bold text-gray-800 mt-1">
-                          {balance.owedBy === user?.id
+                          {balance.owedBy === user?._id
                             ? `You owe ₹${balance.amount}`
-                            : balance.owedTo === user?._id ||
-                                balance.owedTo === user?.id
+                            : balance.owedTo === user?._id
                               ? `You will receive ₹${balance.amount}`
                               : `${getMemberName(balance.owedBy)} owes ${getMemberName(balance.owedTo)}`}
                         </p>
                       </div>
-                      {balance.owedBy === user?.id && (
+                      {balance.owedBy === user?._id && (
                         <button
                           onClick={() => handleSettle(balance)}
                           className="bg-green-600 text-white w-full py-3 rounded-lg text-base hover:bg-green-700 transition text-sm font-medium"

@@ -3,7 +3,7 @@ const User = require("../models/User");
 // @GET /api/users/profile
 const getProfile = async (req, res) => {
   res.json({
-    id: req.user._id,
+    _id: req.user._id,
     name: req.user.name,
     email: req.user.email,
     friends: req.user.friends,
@@ -70,6 +70,9 @@ const acceptFriendRequest = async (req, res) => {
     await currentUser.save();
 
     const fromUser = await User.findById(req.params.id);
+    if (!fromUser) {
+      return res.status(404).json({ message: "Requesting user not found" });
+    }
     fromUser.friends.push(req.user._id);
     await fromUser.save();
 

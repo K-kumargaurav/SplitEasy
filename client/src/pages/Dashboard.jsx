@@ -22,11 +22,11 @@ export default function Dashboard() {
   const notifRef = useRef(null);
 
   useEffect(() => {
-  if (!user) return;
+  if (!user?._id) return;
 
   socket.emit("join", user._id);
 
-  // 🔥 settlement_request
+  // settlement_request
   const settlementRequestHandler = (data) => {
     toast((t) => (
       <div
@@ -41,7 +41,7 @@ export default function Dashboard() {
     ));
   };
 
-  // 🔥 settlement_update
+  // settlement_update
   const settlementUpdateHandler = (data) => {
     toast((t) => (
       <div
@@ -58,7 +58,7 @@ export default function Dashboard() {
     ));
   };
 
-  // 🔥 new_invite
+  // new_invite
   const newInviteHandler = (data) => {
     toast((t) => (
       <div
@@ -83,8 +83,9 @@ export default function Dashboard() {
     socket.off("settlement_request", settlementRequestHandler);
     socket.off("settlement_update", settlementUpdateHandler);
     socket.off("new_invite", newInviteHandler);
+    socket.disconnect();
   };
-}, [user]);
+}, [user?._id]);
 
   useEffect(() => {
     if (!user?._id) return;
@@ -101,6 +102,7 @@ export default function Dashboard() {
       setInvites(res.data);
     } catch (err) {
       console.error(err);
+      setError("Failed to load invites");
     }
   };
 
@@ -132,6 +134,7 @@ export default function Dashboard() {
       setNotifications(res.data);
     } catch (err) {
       console.error(err);
+      setError("Failed to load notifications");
     }
   };
 
@@ -168,6 +171,7 @@ export default function Dashboard() {
       setPendingSettlements(res.data);
     } catch (err) {
       console.error(err);
+      setError("Failed to load pending settlements");
     }
   };
 
