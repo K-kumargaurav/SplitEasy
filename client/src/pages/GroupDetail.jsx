@@ -123,9 +123,10 @@ export default function GroupDetail() {
   const navigate                        = useNavigate();
 
   /* ── Data ── */
-  const [group,    setGroup]    = useState(null);
-  const [expenses, setExpenses] = useState([]);
-  const [balances, setBalances] = useState([]);
+  const [group,              setGroup]              = useState(null);
+  const [expenses,           setExpenses]           = useState([]);
+  const [balances,           setBalances]           = useState([]);
+  const [myPendingSettlements, setMyPendingSettlements] = useState([]); // settlements I sent, still pending
 
   /* ── UI state ── */
   const [loading,       setLoading]       = useState(true);
@@ -172,15 +173,22 @@ export default function GroupDetail() {
 
   const fetchAll = async () => {
     try {
-      const [groupRes, expensesRes, balancesRes] = await Promise.allSettled([
+      const [groupRes, expensesRes, balancesRes, settlementsRes] = await Promise.allSettled([
         api.get(`/groups/${id}`),
         api.get(`/groups/${id}/expenses`),
         api.get(`/groups/${id}/balances`),
+        api.get(`/groups/${id}/settlements`),
       ]);
 
-      if (groupRes.status    === "fulfilled") setGroup(groupRes.value.data);
-      if (expensesRes.status === "fulfilled") setExpenses(expensesRes.value.data);
-      if (balancesRes.status === "fulfilled") setBalances(balancesRes.value.data);
+      if (groupRes.status       === "fulfilled") setGroup(groupRes.value.data);
+      if (expensesRes.status    === "fulfilled") setExpenses(expensesRes.value.data);
+      if (balancesRes.status    === "fulfilled") setBalances(balancesRes.value.data);
+      if (settlementsRes.status === "fulfilled") {
+        const pending = settlementsRes.value.data.filter(
+          (s) => s.status === "pending" && s.paidBy._id === user?._id
+        );
+        setMyPendingSettlements(pending);
+      }
 
       if (groupRes.status    === "rejected")  setError("Failed to load group");
       if (expensesRes.status === "rejected")  setError("Failed to load expenses");
@@ -563,14 +571,24 @@ export default function GroupDetail() {
                               ₹{b.amount}
                             </span>
                           </div>
-                          <button
-                            onClick={() => openSettleModal(b)}
-                            className="w-full h-10 bg-emerald-500 active:bg-emerald-600
-                                       text-white text-sm font-semibold rounded-xl
-                                       transition touch-manipulation select-none"
-                          >
-                            Settle Up
-                          </button>
+                          {(() => {
+                            const alreadyPending = myPendingSettlements.some(
+                              (s) => s.paidTo._id === b.owedTo || s.paidTo === b.owedTo
+                            );
+                            return (
+                              <button
+                                onClick={() => !alreadyPending && openSettleModal(b)}
+                                disabled={alreadyPending}
+                                className={`w-full h-10 text-sm font-semibold rounded-xl
+                                            transition touch-manipulation select-none
+                                            ${alreadyPending
+                                              ? "bg-gray-100 dark:bg-[#3a3a3c] text-gray-400 dark:text-gray-500 cursor-not-allowed"
+                                              : "bg-emerald-500 active:bg-emerald-600 text-white"}`}
+                              >
+                                {alreadyPending ? "⏳ Request Pending" : "Settle Up"}
+                              </button>
+                            );
+                          })()}
                         </div>
                       ))}
                     </ListGroup>
