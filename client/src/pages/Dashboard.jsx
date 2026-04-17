@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 import api from "../utils/api";
 import MemberSearch from "../components/MemberSearch";
 import socket from "../utils/socket";
@@ -32,7 +33,8 @@ function Avatar({ name = "?", size = 40 }) {
 function SectionHeader({ title, action }) {
   return (
     <div className="flex items-center justify-between px-4 mb-1">
-      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+      <span className="text-xs font-semibold text-gray-500 dark:text-gray-400
+                       uppercase tracking-wider">
         {title}
       </span>
       {action}
@@ -42,7 +44,8 @@ function SectionHeader({ title, action }) {
 
 function ListGroup({ children }) {
   return (
-    <div className="bg-white rounded-2xl overflow-hidden divide-y divide-gray-100 shadow-sm">
+    <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl overflow-hidden
+                    divide-y divide-gray-100 dark:divide-[#3a3a3c] shadow-sm">
       {children}
     </div>
   );
@@ -53,13 +56,18 @@ function BottomSheet({ open, onClose, title, children }) {
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-t-3xl sheet max-h-[92vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h2 className="text-base font-semibold text-gray-900">{title}</h2>
+      <div className="relative bg-white dark:bg-[#2c2c2e] rounded-t-3xl sheet
+                      max-h-[92vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 py-4
+                        border-b border-gray-100 dark:border-[#3a3a3c]">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+            {title}
+          </h2>
           <button
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-full
-                       bg-gray-100 text-gray-500 active:bg-gray-200 transition"
+                       bg-gray-100 dark:bg-[#3a3a3c] text-gray-500 dark:text-gray-400
+                       active:bg-gray-200 dark:active:bg-[#48484a] transition"
           >
             ✕
           </button>
@@ -114,8 +122,9 @@ const NAV_TABS = [
 function GlassPillNav({ active, onChange, badge }) {
   return (
     <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
-      <div className="flex items-center bg-white/80 backdrop-blur-2xl
-                      border border-white/60 shadow-2xl rounded-full px-2 py-2 gap-1">
+      <div className="flex items-center bg-white/80 dark:bg-[#2c2c2e]/85 backdrop-blur-2xl
+                      border border-white/60 dark:border-[#3a3a3c]/60
+                      shadow-2xl rounded-full px-2 py-2 gap-1">
         {NAV_TABS.map((tab) => (
           <button
             key={tab.id}
@@ -125,7 +134,7 @@ function GlassPillNav({ active, onChange, badge }) {
                         touch-manipulation select-none min-w-[72px]
                         ${active === tab.id
                           ? "bg-emerald-500 text-white shadow-md"
-                          : "text-gray-400 active:bg-gray-100"}`}
+                          : "text-gray-400 active:bg-gray-100 dark:active:bg-[#3a3a3c]"}`}
           >
             {tab.icon}
             <span className="text-[10px] font-semibold leading-none">{tab.label}</span>
@@ -152,8 +161,9 @@ function GlassPillNav({ active, onChange, badge }) {
 ───────────────────────────────────────── */
 
 export default function Dashboard() {
-  const { user, logout } = useAuth();
-  const navigate         = useNavigate();
+  const { user, logout }  = useAuth();
+  const { dark, toggle }  = useTheme();
+  const navigate          = useNavigate();
 
   /* ── Data ── */
   const [groups,             setGroups]             = useState([]);
@@ -373,7 +383,7 @@ export default function Dashboard() {
                 <div className="flex items-center gap-3 mb-3">
                   <Avatar name={s.paidBy.name} size={40} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
                       {s.paidBy.name} wants to pay you
                     </p>
                     <p className="text-xs text-gray-400 truncate">{s.group.name}</p>
@@ -419,7 +429,7 @@ export default function Dashboard() {
                     👥
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
                       {invite.groupName}
                     </p>
                     <p className="text-xs text-gray-400">
@@ -486,9 +496,9 @@ export default function Dashboard() {
             ))}
           </ListGroup>
         ) : groups.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-sm py-16 text-center">
+          <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm py-16 text-center">
             <p className="text-4xl mb-3">💸</p>
-            <p className="text-gray-700 font-semibold text-base">No groups yet</p>
+            <p className="text-gray-700 dark:text-gray-200 font-semibold text-base">No groups yet</p>
             <p className="text-gray-400 text-sm mt-1">Create one and start splitting</p>
             <button
               onClick={() => setShowCreateForm(true)}
@@ -514,7 +524,7 @@ export default function Dashboard() {
                   👥
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-base font-medium text-gray-900 truncate">
+                  <p className="text-base font-medium text-gray-900 dark:text-white truncate">
                     {group.name}
                   </p>
                   <p className="text-sm text-gray-400 truncate">
@@ -553,9 +563,9 @@ export default function Dashboard() {
           ))}
         </ListGroup>
       ) : debts.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-sm py-20 text-center">
+        <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm py-20 text-center">
           <p className="text-5xl mb-3">🎉</p>
-          <p className="text-gray-700 font-semibold text-base">All settled up!</p>
+          <p className="text-gray-700 dark:text-gray-200 font-semibold text-base">All settled up!</p>
           <p className="text-gray-400 text-sm mt-1">You don't owe anyone right now</p>
         </div>
       ) : (
@@ -572,7 +582,7 @@ export default function Dashboard() {
               >
                 <Avatar name={debt.owedToName} size={42} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 truncate">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
                     {debt.owedToName}
                   </p>
                   <p className="text-xs text-gray-400 truncate">{debt.groupName}</p>
@@ -613,9 +623,9 @@ export default function Dashboard() {
           ))}
         </ListGroup>
       ) : activity.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-sm py-20 text-center">
+        <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm py-20 text-center">
           <p className="text-5xl mb-3">📭</p>
-          <p className="text-gray-700 font-semibold text-base">No activity yet</p>
+          <p className="text-gray-700 dark:text-gray-200 font-semibold text-base">No activity yet</p>
           <p className="text-gray-400 text-sm mt-1">Your settlement history will show here</p>
         </div>
       ) : (
@@ -650,11 +660,11 @@ export default function Dashboard() {
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
                       {isSender ? `You → ${otherParty}` : `${otherParty} → You`}
                     </p>
                     <p className="text-xs text-gray-400 truncate">{s.group.name}</p>
-                    <p className="text-xs text-gray-300 mt-0.5">
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                       {new Date(s.updatedAt).toLocaleDateString("en-IN", {
                         day: "numeric", month: "short", year: "numeric",
                       })}
@@ -682,19 +692,57 @@ export default function Dashboard() {
      Render
   ───────────────────────────────────────── */
   return (
-    <div className="min-h-screen bg-[#efeff4]">
+    <div className="min-h-screen bg-[#efeff4] dark:bg-[#1c1c1e]">
 
       {/* ── Sticky top bar ── */}
-      <header className="sticky top-0 z-10 bg-white/90 backdrop-blur
-                         border-b border-gray-200/60 shadow-sm">
+      <header className="sticky top-0 z-10 bg-white/90 dark:bg-[#1c1c1e]/90
+                         backdrop-blur border-b border-gray-200/60
+                         dark:border-[#3a3a3c]/60 shadow-sm">
         <div className="max-w-lg mx-auto h-14 px-4 flex items-center justify-between">
 
           <div className="flex items-center gap-2 select-none">
             <span className="text-xl">💸</span>
-            <span className="text-lg font-bold text-gray-900 tracking-tight">SplitEasy</span>
+            <span className="text-lg font-bold text-gray-900 dark:text-white tracking-tight">
+              SplitEasy
+            </span>
           </div>
 
           <div className="flex items-center gap-1">
+
+            {/* Dark mode toggle */}
+            <button
+              onClick={toggle}
+              className="w-10 h-10 flex items-center justify-center rounded-full
+                         hover:bg-gray-100 dark:hover:bg-[#3a3a3c]
+                         active:bg-gray-200 dark:active:bg-[#48484a]
+                         transition touch-manipulation"
+              aria-label="Toggle dark mode"
+            >
+              {dark ? (
+                <svg className="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0
+                           01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894
+                           6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06
+                           1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0
+                           010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0
+                           001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59
+                           1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5
+                           0v-2.25A.75.75 0 0112 18zM7.166 17.834a.75.75 0 00-1.06
+                           1.06l1.59 1.591a.75.75 0 001.061-1.06l-1.59-1.591zM6
+                           12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016
+                           12zM6.166 6.166a.75.75 0 011.06-1.06l1.591 1.59a.75.75 0
+                           01-1.061 1.061l-1.59-1.59z" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
+                  <path fillRule="evenodd" d="M9.528 1.718a.75.75 0 01.162.819A8.97 8.97 0
+                         009 6a9 9 0 009 9 8.97 8.97 0 003.463-.69.75.75 0
+                         01.981.98 10.503 10.503 0 01-9.694 6.46c-5.799
+                         0-10.5-4.701-10.5-10.5 0-4.368 2.667-8.112
+                         6.46-9.694a.75.75 0 01.818.162z" clipRule="evenodd" />
+                </svg>
+              )}
+            </button>
 
             {/* Notification bell */}
             <div className="relative" ref={notifRef}>
@@ -720,18 +768,25 @@ export default function Dashboard() {
               </button>
 
               {showNotifications && (
-                <div className="absolute right-0 top-12 w-80 bg-white rounded-2xl
-                                shadow-xl border border-gray-100 overflow-hidden z-20">
-                  <div className="px-4 py-3 border-b border-gray-100">
-                    <p className="font-semibold text-gray-900 text-sm">Notifications</p>
+                <div className="absolute right-0 top-12 w-80 bg-white dark:bg-[#2c2c2e]
+                                rounded-2xl shadow-xl border border-gray-100
+                                dark:border-[#3a3a3c] overflow-hidden z-20">
+                  <div className="px-4 py-3 border-b border-gray-100 dark:border-[#3a3a3c]">
+                    <p className="font-semibold text-gray-900 dark:text-white text-sm">
+                      Notifications
+                    </p>
                   </div>
                   {notifications.length === 0 ? (
                     <p className="text-center text-gray-400 text-sm py-8">Nothing here yet</p>
                   ) : (
-                    <div className="max-h-72 overflow-y-auto divide-y divide-gray-50">
+                    <div className="max-h-72 overflow-y-auto divide-y divide-gray-50
+                                    dark:divide-[#3a3a3c]">
                       {notifications.map((n, i) => (
-                        <div key={i} className={`px-4 py-3 ${!n.read ? "bg-emerald-50/60" : ""}`}>
-                          <p className="text-sm text-gray-700">{n.message}</p>
+                        <div key={i} className={`px-4 py-3
+                          ${!n.read ? "bg-emerald-50/60 dark:bg-emerald-900/10" : ""}`}>
+                          <p className="text-sm text-gray-700 dark:text-gray-300">
+                            {n.message}
+                          </p>
                           <p className="text-xs text-gray-400 mt-0.5">
                             {new Date(n.createdAt).toLocaleDateString()}
                           </p>
@@ -758,8 +813,9 @@ export default function Dashboard() {
       {/* ── Scrollable content ── */}
       <main className="max-w-lg mx-auto px-4 py-5 pb-36 space-y-6">
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3
-                          text-sm text-red-600 flex items-center gap-2">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200
+                          dark:border-red-800/30 rounded-xl px-4 py-3
+                          text-sm text-red-600 dark:text-red-400 flex items-center gap-2">
             <span>⚠</span> {error}
           </div>
         )}
@@ -783,14 +839,15 @@ export default function Dashboard() {
         title="Create Group"
       >
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3
-                          text-sm text-red-600 mb-4">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200
+                          dark:border-red-800/30 rounded-xl px-4 py-3
+                          text-sm text-red-600 dark:text-red-400 mb-4">
             {error}
           </div>
         )}
         <form onSubmit={handleCreateGroup} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1.5">
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
               Group Name
             </label>
             <input
@@ -798,15 +855,18 @@ export default function Dashboard() {
               placeholder="e.g. Goa Trip, Monthly Rent…"
               value={newGroup.name}
               onChange={(e) => setNewGroup({ ...newGroup, name: e.target.value })}
-              className="w-full h-12 bg-gray-50 border border-gray-200 rounded-xl
-                         px-4 text-base focus:outline-none focus:border-emerald-500
+              className="w-full h-12 bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
+                         dark:border-[#48484a] rounded-xl px-4 text-base
+                         text-gray-900 dark:text-white placeholder-gray-400
+                         dark:placeholder-gray-500
+                         focus:outline-none focus:border-emerald-500
                          focus:ring-2 focus:ring-emerald-500/20 transition"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1.5">
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
               Notes{" "}
               <span className="text-gray-400 font-normal">(optional)</span>
             </label>
@@ -815,14 +875,17 @@ export default function Dashboard() {
               placeholder="Purpose, dates, etc."
               value={newGroup.description}
               onChange={(e) => setNewGroup({ ...newGroup, description: e.target.value })}
-              className="w-full h-12 bg-gray-50 border border-gray-200 rounded-xl
-                         px-4 text-base focus:outline-none focus:border-emerald-500
+              className="w-full h-12 bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
+                         dark:border-[#48484a] rounded-xl px-4 text-base
+                         text-gray-900 dark:text-white placeholder-gray-400
+                         dark:placeholder-gray-500
+                         focus:outline-none focus:border-emerald-500
                          focus:ring-2 focus:ring-emerald-500/20 transition"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1.5">
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
               Invite Members
             </label>
             <MemberSearch
@@ -870,9 +933,10 @@ export default function Dashboard() {
             <button
               type="button"
               onClick={() => setShowCreateForm(false)}
-              className="flex-1 h-12 bg-gray-100 active:bg-gray-200
-                         text-gray-700 font-semibold rounded-xl transition
-                         touch-manipulation select-none"
+              className="flex-1 h-12 bg-gray-100 dark:bg-[#3a3a3c]
+                         active:bg-gray-200 dark:active:bg-[#48484a]
+                         text-gray-700 dark:text-gray-200 font-semibold rounded-xl
+                         transition touch-manipulation select-none"
             >
               Cancel
             </button>

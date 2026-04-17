@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* ── Class-based dark mode (add .dark to <html>) ── */
+@variant dark (&:where(.dark, .dark *));
+
 /* ── Reset tap highlight on all interactive elements ── */
 * {
   -webkit-tap-highlight-color: transparent;
@@ -14,6 +17,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: #efeff4;
   overscroll-behavior-y: none;
+  color-scheme: light dark;
 }
 
 /* ── Bottom sheet modal — prevents inner scroll from bouncing the page ── */

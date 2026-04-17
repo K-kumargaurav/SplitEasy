@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 import api from "../utils/api";
 import MemberSearch from "../components/MemberSearch";
 import toast from "react-hot-toast";
@@ -32,7 +33,8 @@ function Avatar({ name = "?", size = 36 }) {
 /** Section label */
 function SectionLabel({ children }) {
   return (
-    <p className="px-1 mb-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+    <p className="px-1 mb-1 text-xs font-semibold text-gray-500 dark:text-gray-400
+                  uppercase tracking-wider">
       {children}
     </p>
   );
@@ -41,25 +43,28 @@ function SectionLabel({ children }) {
 /** Grouped white card with optional divided children */
 function ListGroup({ children }) {
   return (
-    <div className="bg-white rounded-2xl overflow-hidden divide-y divide-gray-100 shadow-sm">
+    <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl overflow-hidden
+                    divide-y divide-gray-100 dark:divide-[#3a3a3c] shadow-sm">
       {children}
     </div>
   );
 }
 
-/** Full-screen bottom sheet modal */
 function BottomSheet({ open, onClose, title, children }) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-t-3xl sheet max-h-[95vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h2 className="text-base font-semibold text-gray-900">{title}</h2>
+      <div className="relative bg-white dark:bg-[#2c2c2e] rounded-t-3xl sheet
+                      max-h-[95vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 py-4
+                        border-b border-gray-100 dark:border-[#3a3a3c]">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white">{title}</h2>
           <button
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-full
-                       bg-gray-100 text-gray-500 active:bg-gray-200 transition"
+                       bg-gray-100 dark:bg-[#3a3a3c] text-gray-500 dark:text-gray-400
+                       active:bg-gray-200 dark:active:bg-[#48484a] transition"
           >
             ✕
           </button>
@@ -70,19 +75,20 @@ function BottomSheet({ open, onClose, title, children }) {
   );
 }
 
-/** Centered overlay dialog (used for settle modal) */
 function Dialog({ open, onClose, title, children }) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl w-full max-w-sm shadow-2xl p-5">
+      <div className="relative bg-white dark:bg-[#2c2c2e] rounded-2xl w-full
+                      max-w-sm shadow-2xl p-5">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold text-gray-900">{title}</h2>
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white">{title}</h2>
           <button
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-full
-                       bg-gray-100 text-gray-500 active:bg-gray-200 transition"
+                       bg-gray-100 dark:bg-[#3a3a3c] text-gray-500 dark:text-gray-400
+                       active:bg-gray-200 dark:active:bg-[#48484a] transition"
           >
             ✕
           </button>
@@ -100,6 +106,7 @@ function Dialog({ open, onClose, title, children }) {
 export default function GroupDetail() {
   const { id }                          = useParams();
   const { user, loading: authLoading }  = useAuth();
+  const { dark, toggle }                = useTheme();
   const navigate                        = useNavigate();
 
   /* ── Data ── */
@@ -266,7 +273,8 @@ export default function GroupDetail() {
   ───────────────────────────────────────── */
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-[#efeff4] flex items-center justify-center">
+      <div className="min-h-screen bg-[#efeff4] dark:bg-[#1c1c1e]
+                      flex items-center justify-center">
         <div className="w-8 h-8 rounded-full border-2 border-emerald-500
                         border-t-transparent animate-spin" />
       </div>
@@ -277,17 +285,19 @@ export default function GroupDetail() {
      Render
   ───────────────────────────────────────── */
   return (
-    <div className="min-h-screen bg-[#efeff4]">
+    <div className="min-h-screen bg-[#efeff4] dark:bg-[#1c1c1e]">
 
       {/* ── Sticky header ── */}
-      <header className="sticky top-0 z-10 bg-white/90 backdrop-blur
-                         border-b border-gray-200/60 shadow-sm">
+      <header className="sticky top-0 z-10 bg-white/90 dark:bg-[#1c1c1e]/90
+                         backdrop-blur border-b border-gray-200/60
+                         dark:border-[#3a3a3c]/60 shadow-sm">
         <div className="max-w-lg mx-auto h-14 px-4 flex items-center gap-3">
           {/* Back button */}
           <button
             onClick={() => navigate("/dashboard")}
             className="w-10 h-10 flex items-center justify-center rounded-full
-                       hover:bg-gray-100 active:bg-gray-200 transition
+                       hover:bg-gray-100 dark:hover:bg-[#3a3a3c]
+                       active:bg-gray-200 dark:active:bg-[#48484a] transition
                        touch-manipulation shrink-0"
           >
             <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -297,7 +307,7 @@ export default function GroupDetail() {
 
           {/* Title */}
           <div className="flex-1 min-w-0">
-            <h1 className="text-base font-semibold text-gray-900 truncate">
+            <h1 className="text-base font-semibold text-gray-900 dark:text-white truncate">
               {group?.name}
             </h1>
             {group?.description && (
@@ -305,8 +315,44 @@ export default function GroupDetail() {
             )}
           </div>
 
+          {/* Dark mode toggle */}
+          <button
+            onClick={toggle}
+            className="w-10 h-10 flex items-center justify-center rounded-full
+                       hover:bg-gray-100 dark:hover:bg-[#3a3a3c]
+                       active:bg-gray-200 dark:active:bg-[#48484a]
+                       transition touch-manipulation shrink-0"
+            aria-label="Toggle dark mode"
+          >
+            {dark ? (
+              <svg className="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0
+                         01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894
+                         6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06
+                         1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0
+                         010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0
+                         001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59
+                         1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5
+                         0v-2.25A.75.75 0 0112 18zM7.166 17.834a.75.75 0 00-1.06
+                         1.06l1.59 1.591a.75.75 0 001.061-1.06l-1.59-1.591zM6
+                         12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016
+                         12zM6.166 6.166a.75.75 0 011.06-1.06l1.591 1.59a.75.75 0
+                         01-1.061 1.061l-1.59-1.59z" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
+                <path fillRule="evenodd" d="M9.528 1.718a.75.75 0 01.162.819A8.97 8.97 0
+                       009 6a9 9 0 009 9 8.97 8.97 0 003.463-.69.75.75 0
+                       01.981.98 10.503 10.503 0 01-9.694 6.46c-5.799
+                       0-10.5-4.701-10.5-10.5 0-4.368 2.667-8.112
+                       6.46-9.694a.75.75 0 01.818.162z" clipRule="evenodd" />
+              </svg>
+            )}
+          </button>
+
           {/* Member count pill */}
-          <span className="text-xs text-gray-500 bg-gray-100 px-2.5 py-1
+          <span className="text-xs text-gray-500 dark:text-gray-400
+                           bg-gray-100 dark:bg-[#3a3a3c] px-2.5 py-1
                            rounded-full shrink-0 select-none">
             {group?.members.length} members
           </span>
@@ -318,16 +364,18 @@ export default function GroupDetail() {
 
         {/* Error banner */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3
-                          text-sm text-red-600">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200
+                          dark:border-red-800/30 rounded-xl px-4 py-3
+                          text-sm text-red-600 dark:text-red-400">
             {error}
           </div>
         )}
 
         {/* ── Members row ── */}
-        <div className="bg-white rounded-2xl shadow-sm p-4">
+        <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm p-4">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400
+                          uppercase tracking-wider">
               Members
             </p>
             {group?.createdBy?._id === user?._id && (
@@ -345,15 +393,16 @@ export default function GroupDetail() {
             {group?.members.map((member) => (
               <div
                 key={member._id}
-                className="flex items-center gap-1.5 bg-gray-50 border
-                           border-gray-100 px-3 py-1.5 rounded-full"
+                className="flex items-center gap-1.5 bg-gray-50 dark:bg-[#3a3a3c]
+                           border border-gray-100 dark:border-[#48484a]
+                           px-3 py-1.5 rounded-full"
               >
                 <div className="w-5 h-5 rounded-full bg-emerald-500
                                 flex items-center justify-center text-white
                                 text-[10px] font-bold select-none">
                   {member.name[0].toUpperCase()}
                 </div>
-                <span className="text-sm text-gray-700 font-medium">
+                <span className="text-sm text-gray-700 dark:text-gray-200 font-medium">
                   {member.name}
                 </span>
                 {member._id === user?._id && (
@@ -381,7 +430,7 @@ export default function GroupDetail() {
         </div>
 
         {/* ── Tab switcher ── */}
-        <div className="flex bg-gray-200 rounded-2xl p-1">
+        <div className="flex bg-gray-200 dark:bg-[#3a3a3c] rounded-2xl p-1">
           {["expenses", "balances"].map((tab) => (
             <button
               key={tab}
@@ -389,8 +438,8 @@ export default function GroupDetail() {
               className={`flex-1 py-2.5 rounded-xl text-sm font-semibold
                           capitalize transition-all touch-manipulation select-none
                           ${activeTab === tab
-                            ? "bg-white shadow-sm text-emerald-600"
-                            : "text-gray-500"}`}
+                            ? "bg-white dark:bg-[#2c2c2e] shadow-sm text-emerald-600"
+                            : "text-gray-500 dark:text-gray-400"}`}
             >
               {tab}
             </button>
@@ -401,9 +450,9 @@ export default function GroupDetail() {
         {activeTab === "expenses" && (
           <>
             {expenses.length === 0 ? (
-              <div className="bg-white rounded-2xl shadow-sm py-16 text-center">
+              <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm py-16 text-center">
                 <p className="text-4xl mb-3">🧾</p>
-                <p className="text-gray-700 font-semibold">No expenses yet</p>
+                <p className="text-gray-700 dark:text-gray-200 font-semibold">No expenses yet</p>
                 <p className="text-gray-400 text-sm mt-1">
                   Add the first one to start tracking
                 </p>
@@ -415,7 +464,7 @@ export default function GroupDetail() {
                     {/* Expense header */}
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1 min-w-0 mr-3">
-                        <p className="text-base font-medium text-gray-900 truncate">
+                        <p className="text-base font-medium text-gray-900 dark:text-white truncate">
                           {expense.description}
                         </p>
                         <p className="text-xs text-gray-400 mt-0.5">
@@ -425,7 +474,7 @@ export default function GroupDetail() {
                           </span>
                         </p>
                       </div>
-                      <span className="text-base font-bold text-gray-900 shrink-0">
+                      <span className="text-base font-bold text-gray-900 dark:text-white shrink-0">
                         ₹{expense.amount.toFixed(2)}
                       </span>
                     </div>
@@ -456,9 +505,9 @@ export default function GroupDetail() {
         {activeTab === "balances" && (
           <>
             {balances.length === 0 ? (
-              <div className="bg-white rounded-2xl shadow-sm py-16 text-center">
+              <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm py-16 text-center">
                 <p className="text-4xl mb-3">🎉</p>
-                <p className="text-gray-700 font-semibold">All settled up!</p>
+                <p className="text-gray-700 dark:text-gray-200 font-semibold">All settled up!</p>
                 <p className="text-gray-400 text-sm mt-1">No pending balances</p>
               </div>
             ) : (
@@ -474,9 +523,9 @@ export default function GroupDetail() {
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
                               <Avatar name={getMemberName(b.owedTo)} size={32} />
-                              <p className="text-sm text-gray-700">
+                              <p className="text-sm text-gray-700 dark:text-gray-300">
                                 You owe{" "}
-                                <span className="font-semibold text-gray-900">
+                                <span className="font-semibold text-gray-900 dark:text-white">
                                   {getMemberName(b.owedTo)}
                                 </span>
                               </p>
@@ -508,8 +557,8 @@ export default function GroupDetail() {
                         <div key={i} className="flex items-center justify-between px-4 py-3.5">
                           <div className="flex items-center gap-2">
                             <Avatar name={getMemberName(b.owedBy)} size={32} />
-                            <p className="text-sm text-gray-700">
-                              <span className="font-semibold text-gray-900">
+                            <p className="text-sm text-gray-700 dark:text-gray-300">
+                              <span className="font-semibold text-gray-900 dark:text-white">
                                 {getMemberName(b.owedBy)}
                               </span>{" "}
                               owes you
@@ -531,16 +580,16 @@ export default function GroupDetail() {
                     <ListGroup>
                       {otherDebts.map((b, i) => (
                         <div key={i} className="flex items-center justify-between px-4 py-3.5">
-                          <p className="text-sm text-gray-600">
-                            <span className="font-semibold text-gray-900">
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            <span className="font-semibold text-gray-900 dark:text-white">
                               {getMemberName(b.owedBy)}
                             </span>{" "}
                             owes{" "}
-                            <span className="font-semibold text-gray-900">
+                            <span className="font-semibold text-gray-900 dark:text-white">
                               {getMemberName(b.owedTo)}
                             </span>
                           </p>
-                          <span className="text-sm font-bold text-gray-700">
+                          <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
                             ₹{b.amount}
                           </span>
                         </div>
@@ -556,8 +605,9 @@ export default function GroupDetail() {
 
       {/* ── Add Expense FAB (expenses tab only) ── */}
       {activeTab === "expenses" && (
-        <div className="fixed bottom-0 inset-x-0 bg-white/80 backdrop-blur
-                        border-t border-gray-200/60 px-4 py-3 pb-safe flex justify-end">
+        <div className="fixed bottom-0 inset-x-0 bg-white/80 dark:bg-[#1c1c1e]/80
+                        backdrop-blur border-t border-gray-200/60 dark:border-[#3a3a3c]/60
+                        px-4 py-3 pb-safe flex justify-end">
           <button
             onClick={() => setShowExpenseForm(true)}
             className="h-12 px-6 bg-emerald-500 active:bg-emerald-600 text-white
@@ -582,15 +632,16 @@ export default function GroupDetail() {
       >
         <form onSubmit={handleAddExpense} className="space-y-4">
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3
-                            text-sm text-red-600">
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200
+                            dark:border-red-800/30 rounded-xl px-4 py-3
+                            text-sm text-red-600 dark:text-red-400">
               {error}
             </div>
           )}
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1.5">
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
               Description
             </label>
             <input
@@ -598,8 +649,11 @@ export default function GroupDetail() {
               placeholder="e.g. Dinner, Hotel, Fuel…"
               value={newExpense.description}
               onChange={(e) => setNewExpense((p) => ({ ...p, description: e.target.value }))}
-              className="w-full h-12 bg-gray-50 border border-gray-200 rounded-xl px-4
-                         text-base focus:outline-none focus:border-emerald-500
+              className="w-full h-12 bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
+                         dark:border-[#48484a] rounded-xl px-4 text-base
+                         text-gray-900 dark:text-white placeholder-gray-400
+                         dark:placeholder-gray-500
+                         focus:outline-none focus:border-emerald-500
                          focus:ring-2 focus:ring-emerald-500/20 transition"
               required
             />
@@ -607,7 +661,7 @@ export default function GroupDetail() {
 
           {/* Amount */}
           <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1.5">
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
               Amount (₹)
             </label>
             <input
@@ -619,8 +673,11 @@ export default function GroupDetail() {
               placeholder="0.00"
               value={newExpense.amount}
               onChange={(e) => setNewExpense((p) => ({ ...p, amount: e.target.value }))}
-              className="w-full h-12 bg-gray-50 border border-gray-200 rounded-xl px-4
-                         text-base focus:outline-none focus:border-emerald-500
+              className="w-full h-12 bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
+                         dark:border-[#48484a] rounded-xl px-4 text-base
+                         text-gray-900 dark:text-white placeholder-gray-400
+                         dark:placeholder-gray-500
+                         focus:outline-none focus:border-emerald-500
                          focus:ring-2 focus:ring-emerald-500/20 transition"
               required
             />
@@ -628,10 +685,10 @@ export default function GroupDetail() {
 
           {/* Split type toggle */}
           <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1.5">
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
               Split Type
             </label>
-            <div className="flex bg-gray-100 rounded-xl p-1">
+            <div className="flex bg-gray-100 dark:bg-[#3a3a3c] rounded-xl p-1">
               {["equal", "custom"].map((type) => (
                 <button
                   key={type}
@@ -640,8 +697,8 @@ export default function GroupDetail() {
                   className={`flex-1 py-2 rounded-lg text-sm font-semibold capitalize
                               transition touch-manipulation select-none
                               ${newExpense.splitType === type
-                                ? "bg-white shadow-sm text-emerald-600"
-                                : "text-gray-500"}`}
+                                ? "bg-white dark:bg-[#2c2c2e] shadow-sm text-emerald-600"
+                                : "text-gray-500 dark:text-gray-400"}`}
                 >
                   {type}
                 </button>
@@ -672,8 +729,10 @@ export default function GroupDetail() {
                         updated[idx].share = e.target.value;
                         setCustomSplits(updated);
                       }}
-                      className="flex-1 h-10 bg-gray-50 border border-gray-200 rounded-xl
-                                 px-3 text-base focus:outline-none focus:border-emerald-500
+                      className="flex-1 h-10 bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
+                                 dark:border-[#48484a] rounded-xl px-3 text-base
+                                 text-gray-900 dark:text-white
+                                 focus:outline-none focus:border-emerald-500
                                  focus:ring-2 focus:ring-emerald-500/20 transition"
                     />
                   </div>
@@ -708,9 +767,10 @@ export default function GroupDetail() {
                 setNewExpense({ description: "", amount: "", splitType: "equal" });
                 setError("");
               }}
-              className="flex-1 h-12 bg-gray-100 active:bg-gray-200
-                         text-gray-700 font-semibold rounded-xl transition
-                         touch-manipulation select-none"
+              className="flex-1 h-12 bg-gray-100 dark:bg-[#3a3a3c]
+                         active:bg-gray-200 dark:active:bg-[#48484a]
+                         text-gray-700 dark:text-gray-200 font-semibold rounded-xl
+                         transition touch-manipulation select-none"
             >
               Cancel
             </button>
@@ -726,7 +786,7 @@ export default function GroupDetail() {
       >
         <p className="text-sm text-gray-400 mb-4">
           Max amount:{" "}
-          <span className="font-semibold text-gray-700">
+          <span className="font-semibold text-gray-700 dark:text-gray-200">
             ₹{settleModal?.maxAmount.toFixed(2)}
           </span>
         </p>
@@ -739,8 +799,10 @@ export default function GroupDetail() {
           step="0.01"
           value={settleAmount}
           onChange={(e) => setSettleAmount(e.target.value)}
-          className="w-full h-12 bg-gray-50 border border-gray-200 rounded-xl px-4
-                     text-base focus:outline-none focus:border-emerald-500
+          className="w-full h-12 bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
+                     dark:border-[#48484a] rounded-xl px-4 text-base
+                     text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500
+                     focus:outline-none focus:border-emerald-500
                      focus:ring-2 focus:ring-emerald-500/20 transition mb-3"
           placeholder="Enter amount"
         />
