@@ -1,4 +1,7 @@
 const User = require("../models/User");
+const Group = require("../models/Group");
+const Expense = require("../models/Expense");
+const Settlement = require("../models/Settlement");
 
 // @GET /api/users/profile
 const getProfile = async (req, res) => {
@@ -143,6 +146,84 @@ const markNotificationsRead = async (req, res) => {
   }
 };
 
+// @GET /api/users/activity — all settlements involving the user (newest first)
+const getUserActivity = async (req, res) => {
+  try {
+    const settlements = await Settlement.find({
+      $or: [{ paidBy: req.user._id }, { paidTo: req.user._id }],
+    })
+      .populate("paidBy", "name")
+      .populate("paidTo", "name")
+      .populate("group", "name")
+      .sort({ updatedAt: -1 })
+      .limit(50)
+      .lean();
+
+    res.json(settlements.map((s) => ({ ...s, amount: s.amount / 100 })));
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+// @GET /api/users/debts — what the user owes across all groups
+const getUserDebts = async (req, res) => {
+  try {
+    const groups = await Group.find({ members: req.user._id })
+      .populate("members", "name")
+      .lean();
+
+    const allDebts = [];
+
+    await Promise.all(
+      groups.map(async (group) => {
+        const [expenses, settlements] = await Promise.all([
+          Expense.find({ group: group._id }).lean(),
+          Settlement.find({ group: group._id, status: "accepted" }).lean(),
+        ]);
+
+        const balances = {};
+        expenses.forEach((expense) => {
+          const paidBy = expense.paidBy.toString();
+          expense.splitBetween.forEach((split) => {
+            const owedBy = split.user.toString();
+            if (owedBy === paidBy) return;
+            if (!balances[owedBy]) balances[owedBy] = {};
+            if (!balances[owedBy][paidBy]) balances[owedBy][paidBy] = 0;
+            if (!split.paid) balances[owedBy][paidBy] += split.share;
+          });
+        });
+
+        settlements.forEach((s) => {
+          const paidBy = s.paidBy.toString();
+          const paidTo = s.paidTo.toString();
+          if (balances[paidBy]?.[paidTo] !== undefined) {
+            balances[paidBy][paidTo] = Math.max(0, balances[paidBy][paidTo] - s.amount);
+          }
+        });
+
+        const myOwed = balances[req.user._id.toString()];
+        if (!myOwed) return;
+
+        Object.entries(myOwed).forEach(([creditorId, amt]) => {
+          if (amt <= 0) return;
+          const creditor = group.members.find((m) => m._id.toString() === creditorId);
+          allDebts.push({
+            groupId: group._id,
+            groupName: group.name,
+            owedTo: creditorId,
+            owedToName: creditor?.name ?? "Unknown",
+            amount: amt / 100,
+          });
+        });
+      })
+    );
+
+    res.json(allDebts);
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
 module.exports = {
   getProfile,
   sendFriendRequest,
@@ -151,4 +232,6 @@ module.exports = {
   searchUsers,
   getNotifications,
   markNotificationsRead,
+  getUserActivity,
+  getUserDebts,
 };
