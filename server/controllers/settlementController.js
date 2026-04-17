@@ -16,7 +16,10 @@ const getBalances = async (req, res) => {
       return res.status(403).json({ message: "Not a member of this group" });
     }
 
-    const expenses = await Expense.find({ group: req.params.id }).lean();
+    const [expenses, settlements] = await Promise.all([
+      Expense.find({ group: req.params.id }).lean(),
+      Settlement.find({ group: req.params.id, status: "accepted" }).lean(),
+    ]);
 
     const balances = {};
 
@@ -31,11 +34,19 @@ const getBalances = async (req, res) => {
         if (!balances[owedBy]) balances[owedBy] = {};
         if (!balances[owedBy][paidBy]) balances[owedBy][paidBy] = 0;
 
-        // ONLY count unpaid
         if (!split.paid) {
           balances[owedBy][paidBy] += split.share;
         }
       });
+    });
+
+    // Subtract accepted settlements (handles partial payments)
+    settlements.forEach(s => {
+      const paidBy = s.paidBy.toString();
+      const paidTo = s.paidTo.toString();
+      if (balances[paidBy] && balances[paidBy][paidTo] !== undefined) {
+        balances[paidBy][paidTo] = Math.max(0, balances[paidBy][paidTo] - s.amount);
+      }
     });
 
     const result = [];
@@ -131,28 +142,6 @@ const respondToSettlement = async (req, res) => {
     }
 
     settlement.status = status;
-
-    // Only now apply payment if accepted
-    if (status === "accepted") {
-      const expenses = await Expense.find({
-        group: settlement.group,
-        paidBy: settlement.paidTo,
-      });
-
-      let remaining = settlement.amount; // track how much to mark paid
-
-      for (const expense of expenses) {
-        const split = expense.splitBetween.find(
-          (s) => s.user.toString() === settlement.paidBy.toString() && !s.paid,
-        );
-
-        if (split && remaining >= split.share) {
-          split.paid = true;
-          remaining -= split.share;
-          await expense.save();
-        }
-      }
-    }
 
     await settlement.save();
 
