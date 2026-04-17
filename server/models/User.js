@@ -47,6 +47,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "India",
     },
+    profilePublic: {
+      type: Boolean,
+      default: false,
+    },
     friends: [
       {
         type: mongoose.Schema.Types.ObjectId,

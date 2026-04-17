@@ -103,6 +103,19 @@ function Dialog({ open, onClose, title, children }) {
    GroupDetail Page
 ───────────────────────────────────────── */
 
+const COUNTRY_FLAGS = {
+  "India":"🇮🇳","United States":"🇺🇸","United Kingdom":"🇬🇧","Canada":"🇨🇦",
+  "Australia":"🇦🇺","Germany":"🇩🇪","France":"🇫🇷","Japan":"🇯🇵","China":"🇨🇳",
+  "Brazil":"🇧🇷","Russia":"🇷🇺","South Korea":"🇰🇷","Italy":"🇮🇹","Spain":"🇪🇸",
+  "Mexico":"🇲🇽","Indonesia":"🇮🇩","Netherlands":"🇳🇱","Saudi Arabia":"🇸🇦",
+  "Turkey":"🇹🇷","Switzerland":"🇨🇭","Argentina":"🇦🇷","Sweden":"🇸🇪","Poland":"🇵🇱",
+  "Belgium":"🇧🇪","Thailand":"🇹🇭","Nigeria":"🇳🇬","UAE":"🇦🇪","Singapore":"🇸🇬",
+  "Malaysia":"🇲🇾","Pakistan":"🇵🇰","Bangladesh":"🇧🇩","Vietnam":"🇻🇳",
+  "Philippines":"🇵🇭","Egypt":"🇪🇬","Iran":"🇮🇷","Iraq":"🇮🇶",
+  "South Africa":"🇿🇦","Colombia":"🇨🇴","Ukraine":"🇺🇦","Romania":"🇷🇴",
+  "New Zealand":"🇳🇿","Nepal":"🇳🇵","Sri Lanka":"🇱🇰","Other":"🌍",
+};
+
 export default function GroupDetail() {
   const { id }                          = useParams();
   const { user, loading: authLoading }  = useAuth();
@@ -133,6 +146,20 @@ export default function GroupDetail() {
   /* ── Settle modal ── */
   const [settleModal,  setSettleModal]  = useState(null); // { owedTo, maxAmount }
   const [settleAmount, setSettleAmount] = useState("");
+
+  /* ── Member profile sheet ── */
+  const [memberProfile, setMemberProfile] = useState(null); // { loading, data, memberId }
+
+  const openMemberProfile = async (member) => {
+    if (member._id === user?._id) return; // own profile — skip
+    setMemberProfile({ loading: true, data: null, memberId: member._id, name: member.name });
+    try {
+      const { data } = await api.get(`/users/${member._id}`);
+      setMemberProfile((p) => ({ ...p, loading: false, data }));
+    } catch {
+      setMemberProfile((p) => ({ ...p, loading: false }));
+    }
+  };
 
   /* ─── Auth guard ─── */
   useEffect(() => {
@@ -391,11 +418,13 @@ export default function GroupDetail() {
 
           <div className="flex flex-wrap gap-2">
             {group?.members.map((member) => (
-              <div
+              <button
                 key={member._id}
+                onClick={() => openMemberProfile(member)}
                 className="flex items-center gap-1.5 bg-gray-50 dark:bg-[#3a3a3c]
                            border border-gray-100 dark:border-[#48484a]
-                           px-3 py-1.5 rounded-full"
+                           px-3 py-1.5 rounded-full active:bg-gray-100
+                           dark:active:bg-[#48484a] touch-manipulation transition"
               >
                 <div className="w-5 h-5 rounded-full bg-emerald-500
                                 flex items-center justify-center text-white
@@ -412,7 +441,7 @@ export default function GroupDetail() {
                     YOU
                   </span>
                 )}
-              </div>
+              </button>
             ))}
           </div>
 
@@ -776,6 +805,90 @@ export default function GroupDetail() {
             </button>
           </div>
         </form>
+      </BottomSheet>
+
+      {/* ─────────── Member Profile Sheet ─────────── */}
+      <BottomSheet
+        open={!!memberProfile}
+        onClose={() => setMemberProfile(null)}
+        title="Member Profile"
+      >
+        {memberProfile?.loading ? (
+          <div className="flex flex-col items-center gap-4 animate-pulse py-8">
+            <div className="w-20 h-20 rounded-full bg-gray-200" />
+            <div className="h-4 bg-gray-200 rounded w-32" />
+          </div>
+        ) : memberProfile?.data ? (
+          (() => {
+            const d = memberProfile.data;
+            const COLORS = ["bg-emerald-500","bg-violet-500","bg-orange-500","bg-sky-500","bg-pink-500","bg-amber-500"];
+            const color = COLORS[(d.name || "?").charCodeAt(0) % COLORS.length];
+            const initials = (d.name || "?").split(" ").map((w) => w[0]).join("").slice(0,2).toUpperCase();
+            const flag = d.profilePublic ? (COUNTRY_FLAGS[d.country] || "") : "";
+
+            const formatLastSeen = (ts) => {
+              const dt = new Date(ts);
+              const now = new Date();
+              const time = dt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+              if (dt.toDateString() === now.toDateString()) return `Today at ${time}`;
+              const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+              if (dt.toDateString() === yesterday.toDateString()) return `Yesterday at ${time}`;
+              return `${dt.toLocaleDateString("en-IN", { day: "numeric", month: "short" })} at ${time}`;
+            };
+
+            return (
+              <div className="flex flex-col items-center gap-4">
+                {/* Avatar */}
+                <div className="relative">
+                  {d.profilePublic && d.profilePhoto ? (
+                    <img src={d.profilePhoto} alt={d.name}
+                         className="w-24 h-24 rounded-full object-cover" />
+                  ) : (
+                    <div className={`${color} w-24 h-24 rounded-full flex items-center
+                                     justify-center text-white text-4xl font-bold select-none`}>
+                      {initials}
+                    </div>
+                  )}
+                  <span className={`absolute bottom-1 right-1 w-4 h-4 rounded-full border-2
+                                    border-white dark:border-[#2c2c2e]
+                                    ${d.isOnline ? "bg-emerald-500" : "bg-gray-400"}`} />
+                  {flag && (
+                    <span className="absolute top-0 left-0 text-xl leading-none select-none">
+                      {flag}
+                    </span>
+                  )}
+                </div>
+
+                {/* Name & username */}
+                <div className="text-center">
+                  <p className="text-xl font-bold text-gray-900 dark:text-white">{d.name}</p>
+                  {d.profilePublic && d.username && (
+                    <p className="text-sm text-emerald-600 font-medium mt-0.5">@{d.username}</p>
+                  )}
+                  <p className={`text-xs mt-1 ${d.isOnline ? "text-emerald-500" : "text-gray-400"}`}>
+                    {d.isOnline ? "🟢 Online" : d.lastSeen ? `Last seen ${formatLastSeen(d.lastSeen)}` : "Offline"}
+                  </p>
+                </div>
+
+                {/* Bio */}
+                {d.profilePublic && d.bio && (
+                  <div className="w-full bg-gray-50 dark:bg-[#3a3a3c] rounded-xl px-4 py-3">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Bio</p>
+                    <p className="text-sm text-gray-700 dark:text-gray-300">{d.bio}</p>
+                  </div>
+                )}
+
+                {!d.profilePublic && (
+                  <p className="text-sm text-gray-400 text-center">
+                    🔒 This member's profile is private
+                  </p>
+                )}
+              </div>
+            );
+          })()
+        ) : (
+          <p className="text-center text-gray-400 text-sm py-8">Could not load profile</p>
+        )}
       </BottomSheet>
 
       {/* ─────────── Settle Up Dialog ─────────── */}

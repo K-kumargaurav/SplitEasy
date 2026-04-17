@@ -17,8 +17,42 @@ const getProfile = async (req, res) => {
     isOnline: user.isOnline,
     lastSeen: user.lastSeen,
     country: user.country || "India",
+    profilePublic: user.profilePublic ?? false,
     friends: user.friends,
   });
+};
+
+// @GET /api/users/:id — public profile (respects profilePublic)
+const getUserById = async (req, res) => {
+  try {
+    const target = await User.findById(req.params.id).select(
+      "name username bio profilePhoto isOnline lastSeen country profilePublic"
+    );
+    if (!target) return res.status(404).json({ message: "User not found" });
+
+    if (!target.profilePublic) {
+      return res.json({
+        _id: target._id,
+        name: target.name,
+        isOnline: target.isOnline,
+        profilePublic: false,
+      });
+    }
+
+    res.json({
+      _id: target._id,
+      name: target.name,
+      username: target.username,
+      bio: target.bio,
+      profilePhoto: target.profilePhoto,
+      isOnline: target.isOnline,
+      lastSeen: target.lastSeen,
+      country: target.country || "India",
+      profilePublic: true,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
 };
 
 // @PUT /api/users/profile
@@ -30,6 +64,8 @@ const updateProfile = async (req, res) => {
     if (bio !== undefined) user.bio = bio;
     if (profilePhoto !== undefined) user.profilePhoto = profilePhoto;
     if (country !== undefined) user.country = country;
+    const { profilePublic } = req.body;
+    if (profilePublic !== undefined) user.profilePublic = profilePublic;
     if (isOnline !== undefined) {
       user.isOnline = isOnline;
       if (!isOnline) user.lastSeen = new Date();
@@ -45,6 +81,7 @@ const updateProfile = async (req, res) => {
       isOnline: user.isOnline,
       lastSeen: user.lastSeen,
       country: user.country || "India",
+      profilePublic: user.profilePublic ?? false,
     });
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
@@ -282,6 +319,7 @@ const getUserDebts = async (req, res) => {
 
 module.exports = {
   getProfile,
+  getUserById,
   updateProfile,
   changePassword,
   sendFriendRequest,

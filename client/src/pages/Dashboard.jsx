@@ -223,15 +223,20 @@ export default function Dashboard() {
 
     socket.emit("join", user._id);
 
-    const onSettlementRequest = (data) =>
+    const onSettlementRequest = (data) => {
+      fetchPendingSettlements();
       toast(() => (
         <span className="cursor-pointer" onClick={() => navigate(`/groups/${data.groupId}`)}>
           💰 {data.message}
         </span>
       ));
+    };
 
-    const onSettlementUpdate = (data) =>
-      toast(data.status === "accepted" ? "✅ Settlement accepted" : "❌ Settlement rejected");
+    const onSettlementUpdate = (data) => {
+      fetchPendingSettlements();
+      fetchDebts();
+      toast(data.status === "accepted" ? "✅ Settlement accepted!" : "❌ Settlement rejected");
+    };
 
     const onNewInvite = () => {
       fetchInvites();
@@ -956,6 +961,37 @@ export default function Dashboard() {
               {pd?.bio || "No bio yet"}
             </p>
           )}
+        </div>
+
+        {/* ── Privacy toggle ── */}
+        <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm px-4 py-3.5
+                        flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">Public Profile</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {pd?.profilePublic
+                ? "Others can see your photo, bio & username"
+                : "Only your name is visible to others"}
+            </p>
+          </div>
+          <button
+            onClick={async () => {
+              const next = !pd?.profilePublic;
+              setProfileData((p) => ({ ...p, profilePublic: next }));
+              try {
+                await api.put("/users/profile", { profilePublic: next });
+                toast.success(next ? "Profile made public" : "Profile set to private");
+              } catch {
+                setProfileData((p) => ({ ...p, profilePublic: !next }));
+                toast.error("Failed to update privacy");
+              }
+            }}
+            className={`relative w-12 h-6 rounded-full transition-colors touch-manipulation
+                        ${pd?.profilePublic ? "bg-emerald-500" : "bg-gray-300 dark:bg-[#48484a]"}`}
+          >
+            <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow
+                              transition-transform ${pd?.profilePublic ? "translate-x-6" : ""}`} />
+          </button>
         </div>
 
         {/* ── Stats ── */}
