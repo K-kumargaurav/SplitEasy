@@ -71,8 +71,33 @@ function ThemeToggle() {
    Register Page
 ───────────────────────────────────────── */
 
+const COUNTRIES = [
+  { name: "India", flag: "🇮🇳" }, { name: "United States", flag: "🇺🇸" },
+  { name: "United Kingdom", flag: "🇬🇧" }, { name: "Canada", flag: "🇨🇦" },
+  { name: "Australia", flag: "🇦🇺" }, { name: "Germany", flag: "🇩🇪" },
+  { name: "France", flag: "🇫🇷" }, { name: "Japan", flag: "🇯🇵" },
+  { name: "China", flag: "🇨🇳" }, { name: "Brazil", flag: "🇧🇷" },
+  { name: "Russia", flag: "🇷🇺" }, { name: "South Korea", flag: "🇰🇷" },
+  { name: "Italy", flag: "🇮🇹" }, { name: "Spain", flag: "🇪🇸" },
+  { name: "Mexico", flag: "🇲🇽" }, { name: "Indonesia", flag: "🇮🇩" },
+  { name: "Netherlands", flag: "🇳🇱" }, { name: "Saudi Arabia", flag: "🇸🇦" },
+  { name: "Turkey", flag: "🇹🇷" }, { name: "Switzerland", flag: "🇨🇭" },
+  { name: "Argentina", flag: "🇦🇷" }, { name: "Sweden", flag: "🇸🇪" },
+  { name: "Poland", flag: "🇵🇱" }, { name: "Belgium", flag: "🇧🇪" },
+  { name: "Thailand", flag: "🇹🇭" }, { name: "Nigeria", flag: "🇳🇬" },
+  { name: "UAE", flag: "🇦🇪" }, { name: "Singapore", flag: "🇸🇬" },
+  { name: "Malaysia", flag: "🇲🇾" }, { name: "Pakistan", flag: "🇵🇰" },
+  { name: "Bangladesh", flag: "🇧🇩" }, { name: "Vietnam", flag: "🇻🇳" },
+  { name: "Philippines", flag: "🇵🇭" }, { name: "Egypt", flag: "🇪🇬" },
+  { name: "Iran", flag: "🇮🇷" }, { name: "Iraq", flag: "🇮🇶" },
+  { name: "South Africa", flag: "🇿🇦" }, { name: "Colombia", flag: "🇨🇴" },
+  { name: "Ukraine", flag: "🇺🇦" }, { name: "Romania", flag: "🇷🇴" },
+  { name: "New Zealand", flag: "🇳🇿" }, { name: "Nepal", flag: "🇳🇵" },
+  { name: "Sri Lanka", flag: "🇱🇰" }, { name: "Other", flag: "🌍" },
+];
+
 export default function Register() {
-  const [form, setForm]                 = useState({ name: "", email: "", password: "" });
+  const [form, setForm]                 = useState({ name: "", email: "", password: "", country: "India" });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError]               = useState("");
   const [loading, setLoading]           = useState(false);
@@ -151,6 +176,35 @@ export default function Register() {
             autoComplete="email"
             required
           />
+
+          {/* Country */}
+          <div>
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+              Country
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg pointer-events-none select-none">
+                {COUNTRIES.find((c) => c.name === form.country)?.flag || "🌍"}
+              </span>
+              <select
+                value={form.country}
+                onChange={handleChange("country")}
+                className="w-full h-12 bg-white dark:bg-[#3a3a3c] border border-gray-200
+                           dark:border-[#48484a] rounded-xl pl-10 pr-4 text-base
+                           text-gray-900 dark:text-white
+                           focus:outline-none focus:border-emerald-500 focus:ring-2
+                           focus:ring-emerald-500/20 transition appearance-none"
+              >
+                {COUNTRIES.map((c) => (
+                  <option key={c.name} value={c.name}>{c.flag} {c.name}</option>
+                ))}
+              </select>
+              <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+                   fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </div>
 
           {/* Password with show/hide toggle */}
           <div>

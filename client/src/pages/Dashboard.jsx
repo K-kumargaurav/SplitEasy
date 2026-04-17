@@ -6,6 +6,7 @@ import api from "../utils/api";
 import MemberSearch from "../components/MemberSearch";
 import socket from "../utils/socket";
 import toast from "react-hot-toast";
+import { Eye, EyeOff } from "lucide-react";
 
 /* ─────────────────────────────────────────
    Local UI components
@@ -119,7 +120,7 @@ const NAV_TABS = [
   },
 ];
 
-function GlassPillNav({ active, onChange, badge }) {
+function GlassPillNav({ active, onChange, badge, user }) {
   return (
     <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
       <div className="flex items-center bg-white/80 dark:bg-[#2c2c2e]/85 backdrop-blur-2xl
@@ -151,6 +152,20 @@ function GlassPillNav({ active, onChange, badge }) {
             )}
           </button>
         ))}
+
+        {/* Profile tab */}
+        <button
+          onClick={() => onChange("profile")}
+          className={`relative flex flex-col items-center justify-center gap-1
+                      px-4 py-2 rounded-full transition-all duration-200
+                      touch-manipulation select-none min-w-16
+                      ${active === "profile"
+                        ? "bg-emerald-500 text-white shadow-md"
+                        : "text-gray-400 active:bg-gray-100 dark:active:bg-[#3a3a3c]"}`}
+        >
+          <Avatar name={user?.name || "?"} size={28} />
+          <span className="text-[10px] font-semibold leading-none">Profile</span>
+        </button>
       </div>
     </nav>
   );
@@ -161,7 +176,7 @@ function GlassPillNav({ active, onChange, badge }) {
 ───────────────────────────────────────── */
 
 export default function Dashboard() {
-  const { user, logout }  = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const { dark, toggle }  = useTheme();
   const navigate          = useNavigate();
 
@@ -185,6 +200,20 @@ export default function Dashboard() {
   /* ── New group form ── */
   const [newGroup,        setNewGroup]        = useState({ name: "", description: "" });
   const [selectedMembers, setSelectedMembers] = useState([]);
+
+  /* ── Profile tab state ── */
+  const [profileData,        setProfileData]        = useState(null);
+  const [profileLoading,     setProfileLoading]     = useState(false);
+  const [editingBio,         setEditingBio]         = useState(false);
+  const [bioText,            setBioText]            = useState("");
+  const [profileSaving,      setProfileSaving]      = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [passwordForm,       setPasswordForm]       = useState({ old: "", new: "", confirm: "" });
+  const [showPw,             setShowPw]             = useState({ old: false, new: false, confirm: false });
+  const [passwordSaving,     setPasswordSaving]     = useState(false);
+  const [passwordError,      setPasswordError]      = useState("");
+  const [passwordSuccess,    setPasswordSuccess]    = useState(false);
+  const photoInputRef = useRef(null);
 
   const notifRef = useRef(null);
 
@@ -230,10 +259,11 @@ export default function Dashboard() {
     fetchPendingSettlements();
   }, [user]);
 
-  /* ─── Fetch activity / debts on tab switch ─── */
+  /* ─── Fetch activity / debts / profile on tab switch ─── */
   useEffect(() => {
     if (activeView === "activity" && activity.length === 0) fetchActivity();
     if (activeView === "payments" && debts.length === 0) fetchDebts();
+    if (activeView === "profile"  && !profileData) fetchProfileData();
   }, [activeView]);
 
   /* ─── Click-outside to close notifications ─── */
@@ -308,6 +338,79 @@ export default function Dashboard() {
     } finally {
       setDebtsLoading(false);
     }
+  };
+
+  const fetchProfileData = async () => {
+    setProfileLoading(true);
+    try {
+      const { data } = await api.get("/users/profile");
+      setProfileData(data);
+      setBioText(data.bio || "");
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const handlePhotoChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 500 * 1024) { toast.error("Image must be under 500 KB"); return; }
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const base64 = ev.target.result;
+      setProfileSaving(true);
+      try {
+        const { data } = await api.put("/users/profile", { profilePhoto: base64 });
+        setProfileData((p) => ({ ...p, profilePhoto: data.profilePhoto }));
+        updateUser({ profilePhoto: data.profilePhoto });
+        toast.success("Photo updated");
+      } catch { toast.error("Failed to update photo"); }
+      finally { setProfileSaving(false); }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleBioSave = async () => {
+    setProfileSaving(true);
+    try {
+      const { data } = await api.put("/users/profile", { bio: bioText });
+      setProfileData((p) => ({ ...p, bio: data.bio }));
+      setEditingBio(false);
+      toast.success("Bio saved");
+    } catch { toast.error("Failed to save bio"); }
+    finally { setProfileSaving(false); }
+  };
+
+  const handleOnlineToggle = async () => {
+    const next = !profileData.isOnline;
+    setProfileData((p) => ({ ...p, isOnline: next }));
+    try {
+      const { data } = await api.put("/users/profile", { isOnline: next });
+      setProfileData((p) => ({ ...p, isOnline: data.isOnline, lastSeen: data.lastSeen }));
+    } catch { setProfileData((p) => ({ ...p, isOnline: !next })); }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPasswordError("");
+    setPasswordSuccess(false);
+    if (passwordForm.new !== passwordForm.confirm) {
+      setPasswordError("New passwords don't match"); return;
+    }
+    if (passwordForm.new.length < 6) {
+      setPasswordError("Password must be at least 6 characters"); return;
+    }
+    setPasswordSaving(true);
+    try {
+      await api.put("/users/change-password", { oldPassword: passwordForm.old, newPassword: passwordForm.new });
+      setPasswordSuccess(true);
+      setPasswordForm({ old: "", new: "", confirm: "" });
+      setTimeout(() => { setPasswordSuccess(false); setShowChangePassword(false); }, 2000);
+    } catch (err) {
+      setPasswordError(err.response?.data?.message || "Failed to change password");
+    } finally { setPasswordSaving(false); }
   };
 
   const handleInviteResponse = async (groupId, status) => {
@@ -688,6 +791,275 @@ export default function Dashboard() {
     </>
   );
 
+  /* ── Profile tab ── */
+  const renderProfile = () => {
+    const COUNTRY_FLAGS = {
+      "India":"🇮🇳","United States":"🇺🇸","United Kingdom":"🇬🇧","Canada":"🇨🇦",
+      "Australia":"🇦🇺","Germany":"🇩🇪","France":"🇫🇷","Japan":"🇯🇵","China":"🇨🇳",
+      "Brazil":"🇧🇷","Russia":"🇷🇺","South Korea":"🇰🇷","Italy":"🇮🇹","Spain":"🇪🇸",
+      "Mexico":"🇲🇽","Indonesia":"🇮🇩","Netherlands":"🇳🇱","Saudi Arabia":"🇸🇦",
+      "Turkey":"🇹🇷","Switzerland":"🇨🇭","Argentina":"🇦🇷","Sweden":"🇸🇪","Poland":"🇵🇱",
+      "Belgium":"🇧🇪","Thailand":"🇹🇭","Nigeria":"🇳🇬","UAE":"🇦🇪","Singapore":"🇸🇬",
+      "Malaysia":"🇲🇾","Pakistan":"🇵🇰","Bangladesh":"🇧🇩","Vietnam":"🇻🇳",
+      "Philippines":"🇵🇭","Egypt":"🇪🇬","Iran":"🇮🇷","Iraq":"🇮🇶",
+      "South Africa":"🇿🇦","Colombia":"🇨🇴","Ukraine":"🇺🇦","Romania":"🇷🇴",
+      "New Zealand":"🇳🇿","Nepal":"🇳🇵","Sri Lanka":"🇱🇰","Other":"🌍",
+    };
+
+    const formatLastSeen = (ts) => {
+      const d = new Date(ts);
+      const now = new Date();
+      const isToday = d.toDateString() === now.toDateString();
+      const time = d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+      if (isToday) return `Last seen today at ${time}`;
+      const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+      if (d.toDateString() === yesterday.toDateString()) return `Last seen yesterday at ${time}`;
+      const date = d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+      return `Last seen ${date} at ${time}`;
+    };
+
+    const pd = profileData;
+    const displayName = pd?.name || user?.name || "?";
+    const COLORS = ["bg-emerald-500","bg-violet-500","bg-orange-500","bg-sky-500","bg-pink-500","bg-amber-500"];
+    const color   = COLORS[displayName.charCodeAt(0) % COLORS.length];
+    const initials = displayName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+    const countryFlag = COUNTRY_FLAGS[pd?.country] || COUNTRY_FLAGS[user?.country] || "";
+
+    if (profileLoading) return (
+      <div className="flex flex-col gap-4 animate-pulse">
+        <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl h-52" />
+        <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl h-32" />
+        <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl h-16" />
+      </div>
+    );
+
+    return (
+      <section className="space-y-4">
+
+        {/* ── Photo + name + username ── */}
+        <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm p-6 flex flex-col items-center gap-3">
+
+          {/* Photo */}
+          <div className="relative">
+            <button
+              onClick={() => photoInputRef.current?.click()}
+              className="relative w-24 h-24 rounded-full overflow-hidden shrink-0
+                         active:opacity-80 transition touch-manipulation"
+              disabled={profileSaving}
+            >
+              {pd?.profilePhoto ? (
+                <img src={pd.profilePhoto} alt="profile"
+                     className="w-full h-full object-cover" />
+              ) : (
+                <div className={`${color} w-full h-full flex items-center justify-center
+                                 text-white text-4xl font-bold select-none`}>
+                  {initials}
+                </div>
+              )}
+              {/* Camera overlay */}
+              <div className="absolute inset-0 bg-black/30 flex items-center justify-center
+                              opacity-0 hover:opacity-100 transition">
+                <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0
+                           011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0
+                           01-2-2V9z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </div>
+            </button>
+            {/* Online dot */}
+            <span className={`absolute bottom-1 right-1 w-4 h-4 rounded-full border-2
+                              border-white dark:border-[#2c2c2e]
+                              ${pd?.isOnline ? "bg-emerald-500" : "bg-gray-400"}`} />
+            {/* Country flag */}
+            {countryFlag && (
+              <span className="absolute top-0 left-0 text-xl leading-none select-none"
+                    title={pd?.country}>
+                {countryFlag}
+              </span>
+            )}
+            <input ref={photoInputRef} type="file" accept="image/*"
+                   className="hidden" onChange={handlePhotoChange} />
+          </div>
+
+          <div className="text-center">
+            <p className="text-xl font-bold text-gray-900 dark:text-white">{displayName}</p>
+            {pd?.username && (
+              <button
+                onClick={() => { navigator.clipboard?.writeText(`@${pd.username}`); toast.success("Username copied!"); }}
+                className="text-sm text-emerald-600 font-medium mt-0.5 touch-manipulation"
+              >
+                @{pd.username}
+              </button>
+            )}
+            <p className="text-xs text-gray-400 mt-1">{pd?.email || user?.email}</p>
+          </div>
+
+          {/* Online / Offline toggle */}
+          <button
+            onClick={handleOnlineToggle}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold
+                        transition touch-manipulation border
+                        ${pd?.isOnline
+                          ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/40"
+                          : "bg-gray-100 dark:bg-[#3a3a3c] text-gray-500 dark:text-gray-400 border-gray-200 dark:border-[#48484a]"}`}
+          >
+            <span className={`w-2 h-2 rounded-full ${pd?.isOnline ? "bg-emerald-500" : "bg-gray-400"}`} />
+            {pd?.isOnline ? "Online" : pd?.lastSeen ? formatLastSeen(pd.lastSeen) : "Offline"}
+          </button>
+        </div>
+
+        {/* ── Bio ── */}
+        <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm px-4 py-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Bio</span>
+            {!editingBio && (
+              <button onClick={() => { setEditingBio(true); setBioText(pd?.bio || ""); }}
+                      className="text-xs text-emerald-600 font-semibold touch-manipulation">
+                {pd?.bio ? "Edit" : "+ Add"}
+              </button>
+            )}
+          </div>
+          {editingBio ? (
+            <div className="space-y-2">
+              <textarea
+                value={bioText}
+                onChange={(e) => setBioText(e.target.value.slice(0, 150))}
+                rows={3}
+                placeholder="Tell people a bit about yourself…"
+                className="w-full bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
+                           dark:border-[#48484a] rounded-xl px-3 py-2 text-sm
+                           text-gray-900 dark:text-white placeholder-gray-400
+                           resize-none focus:outline-none focus:border-emerald-500
+                           focus:ring-2 focus:ring-emerald-500/20 transition"
+              />
+              <p className="text-xs text-gray-400 text-right">{bioText.length}/150</p>
+              <div className="flex gap-2">
+                <button onClick={handleBioSave} disabled={profileSaving}
+                        className="flex-1 h-10 bg-emerald-500 active:bg-emerald-600 text-white
+                                   text-sm font-semibold rounded-xl transition touch-manipulation
+                                   disabled:opacity-50">
+                  {profileSaving ? "Saving…" : "Save"}
+                </button>
+                <button onClick={() => setEditingBio(false)}
+                        className="flex-1 h-10 bg-gray-100 dark:bg-[#3a3a3c] text-gray-700
+                                   dark:text-gray-300 text-sm font-semibold rounded-xl
+                                   transition touch-manipulation">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className={`text-sm ${pd?.bio ? "text-gray-700 dark:text-gray-200" : "text-gray-400 italic"}`}>
+              {pd?.bio || "No bio yet"}
+            </p>
+          )}
+        </div>
+
+        {/* ── Stats ── */}
+        <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm overflow-hidden
+                        divide-y divide-gray-100 dark:divide-[#3a3a3c]">
+          <div className="flex items-center justify-between px-4 py-3.5">
+            <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">Groups joined</span>
+            <span className="text-sm font-bold text-gray-900 dark:text-white">{groups.length}</span>
+          </div>
+          <div className="flex items-center justify-between px-4 py-3.5">
+            <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">Pending payments</span>
+            <span className={`text-sm font-bold ${debts.length > 0 ? "text-red-500" : "text-emerald-600"}`}>
+              {debts.length > 0 ? debts.length : "All clear ✓"}
+            </span>
+          </div>
+        </div>
+
+        {/* ── Change Password ── */}
+        <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm overflow-hidden">
+          <button
+            onClick={() => { setShowChangePassword((v) => !v); setPasswordError(""); setPasswordSuccess(false); }}
+            className="w-full flex items-center justify-between px-4 py-4
+                       active:bg-gray-50 dark:active:bg-[#3a3a3c] transition touch-manipulation"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-blue-50 dark:bg-blue-900/20
+                              flex items-center justify-center shrink-0">
+                <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0
+                           00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">Change Password</span>
+            </div>
+            <svg className={`w-4 h-4 text-gray-400 transition-transform ${showChangePassword ? "rotate-90" : ""}`}
+                 fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+
+          {showChangePassword && (
+            <form onSubmit={handleChangePassword} className="px-4 pb-4 space-y-3 border-t border-gray-100 dark:border-[#3a3a3c] pt-3">
+              {passwordError && (
+                <p className="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-xl">{passwordError}</p>
+              )}
+              {passwordSuccess && (
+                <p className="text-xs text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-2 rounded-xl">
+                  Password changed successfully ✓
+                </p>
+              )}
+              {[
+                { key: "old",     label: "Current Password",  auto: "current-password" },
+                { key: "new",     label: "New Password",      auto: "new-password" },
+                { key: "confirm", label: "Confirm Password",  auto: "new-password" },
+              ].map(({ key, label, auto }) => (
+                <div key={key}>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{label}</label>
+                  <div className="relative">
+                    <input
+                      type={showPw[key] ? "text" : "password"}
+                      value={passwordForm[key]}
+                      onChange={(e) => setPasswordForm((p) => ({ ...p, [key]: e.target.value }))}
+                      autoComplete={auto}
+                      required
+                      className="w-full h-11 bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
+                                 dark:border-[#48484a] rounded-xl px-4 pr-11 text-sm
+                                 text-gray-900 dark:text-white placeholder-gray-400
+                                 focus:outline-none focus:border-emerald-500
+                                 focus:ring-2 focus:ring-emerald-500/20 transition"
+                    />
+                    <button type="button"
+                            onClick={() => setShowPw((p) => ({ ...p, [key]: !p[key] }))}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400
+                                       hover:text-gray-600 dark:hover:text-gray-300 transition p-1">
+                      {showPw[key] ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <button type="submit" disabled={passwordSaving}
+                      className="w-full h-11 bg-emerald-500 active:bg-emerald-600 text-white
+                                 text-sm font-semibold rounded-xl transition touch-manipulation
+                                 disabled:opacity-50 mt-1">
+                {passwordSaving ? "Changing…" : "Change Password"}
+              </button>
+            </form>
+          )}
+        </div>
+
+        {/* ── Sign out ── */}
+        <button
+          onClick={handleLogout}
+          className="w-full h-12 bg-red-50 dark:bg-red-900/20 active:bg-red-100
+                     dark:active:bg-red-900/30 text-red-600 dark:text-red-400
+                     font-semibold rounded-2xl transition touch-manipulation select-none"
+        >
+          Sign Out
+        </button>
+
+      </section>
+    );
+  };
+
   /* ─────────────────────────────────────────
      Render
   ───────────────────────────────────────── */
@@ -798,14 +1170,6 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* User avatar → logout */}
-            <button
-              onClick={handleLogout}
-              className="touch-manipulation select-none"
-              title="Logout"
-            >
-              <Avatar name={user?.name} size={36} />
-            </button>
           </div>
         </div>
       </header>
@@ -823,6 +1187,7 @@ export default function Dashboard() {
         {activeView === "groups"   && renderGroups()}
         {activeView === "payments" && renderPayments()}
         {activeView === "activity" && renderActivity()}
+        {activeView === "profile"  && renderProfile()}
       </main>
 
       {/* ── Floating glass pill bottom nav ── */}
@@ -830,6 +1195,7 @@ export default function Dashboard() {
         active={activeView}
         onChange={setActiveView}
         badge={paymentsBadge}
+        user={user}
       />
 
       {/* ── Create Group Bottom Sheet ── */}

@@ -2,15 +2,71 @@ const User = require("../models/User");
 const Group = require("../models/Group");
 const Expense = require("../models/Expense");
 const Settlement = require("../models/Settlement");
+const bcrypt = require("bcryptjs");
 
 // @GET /api/users/profile
 const getProfile = async (req, res) => {
+  const user = await User.findById(req.user._id);
   res.json({
-    _id: req.user._id,
-    name: req.user.name,
-    email: req.user.email,
-    friends: req.user.friends,
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    username: user.username,
+    bio: user.bio,
+    profilePhoto: user.profilePhoto,
+    isOnline: user.isOnline,
+    lastSeen: user.lastSeen,
+    country: user.country || "India",
+    friends: user.friends,
   });
+};
+
+// @PUT /api/users/profile
+const updateProfile = async (req, res) => {
+  try {
+    const { name, bio, profilePhoto, isOnline, country } = req.body;
+    const user = await User.findById(req.user._id);
+    if (name !== undefined) user.name = name;
+    if (bio !== undefined) user.bio = bio;
+    if (profilePhoto !== undefined) user.profilePhoto = profilePhoto;
+    if (country !== undefined) user.country = country;
+    if (isOnline !== undefined) {
+      user.isOnline = isOnline;
+      if (!isOnline) user.lastSeen = new Date();
+    }
+    await user.save();
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      username: user.username,
+      bio: user.bio,
+      profilePhoto: user.profilePhoto,
+      isOnline: user.isOnline,
+      lastSeen: user.lastSeen,
+      country: user.country || "India",
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+// @PUT /api/users/change-password
+const changePassword = async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+    if (!oldPassword || !newPassword || newPassword.length < 6)
+      return res.status(400).json({ message: "Invalid password data" });
+    const user = await User.findById(req.user._id);
+    const isMatch = await bcrypt.compare(oldPassword, user.password);
+    if (!isMatch) return res.status(400).json({ message: "Current password is incorrect" });
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    await user.save();
+    res.json({ message: "Password changed successfully" });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
 };
 
 // @POST /api/users/friend-request/:id
@@ -226,6 +282,8 @@ const getUserDebts = async (req, res) => {
 
 module.exports = {
   getProfile,
+  updateProfile,
+  changePassword,
   sendFriendRequest,
   acceptFriendRequest,
   getFriends,

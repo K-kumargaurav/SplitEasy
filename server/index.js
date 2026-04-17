@@ -74,8 +74,12 @@ io.on("connection", (socket) => {
 // Connect to MongoDB + Start server
 mongoose
   .connect(process.env.MONGO_URI)
-  .then(() => {
+  .then(async () => {
     console.log("MongoDB connected");
+
+    // Backfill: set country = "India" for users who have none
+    const User = require("./models/User");
+    await User.updateMany({ country: { $exists: false } }, { $set: { country: "India" } });
 
     server.listen(PORT, () => {
       console.log(`Server running on Port ${PORT}`);

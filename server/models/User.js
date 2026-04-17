@@ -20,6 +20,33 @@ const userSchema = new mongoose.Schema(
       required: true,
       minlength: 6,
     },
+    username: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+      lowercase: true,
+    },
+    bio: {
+      type: String,
+      default: "",
+      maxlength: 150,
+    },
+    profilePhoto: {
+      type: String,
+      default: "",
+    },
+    isOnline: {
+      type: Boolean,
+      default: false,
+    },
+    lastSeen: {
+      type: Date,
+    },
+    country: {
+      type: String,
+      default: "India",
+    },
     friends: [
       {
         type: mongoose.Schema.Types.ObjectId,

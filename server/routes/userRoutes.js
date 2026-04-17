@@ -2,6 +2,8 @@ const express = require("express");
 const router = express.Router();
 const { protect } = require("../middleware/authMiddleware");
 const { getProfile,
+    updateProfile,
+    changePassword,
     sendFriendRequest,
     acceptFriendRequest,
     getFriends,
@@ -13,6 +15,8 @@ const { getProfile,
 } = require("../controllers/userController");
 
 router.get("/profile", protect, getProfile);
+router.put("/profile", protect, updateProfile);
+router.put("/change-password", protect, changePassword);
 router.post("/friend-request/:id", protect, sendFriendRequest);
 router.put("/friend-request/:id/accept", protect, acceptFriendRequest);
 router.get("/friends", protect, getFriends);
