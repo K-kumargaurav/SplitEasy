@@ -25,6 +25,8 @@ export default function GroupDetail() {
     splitType: "equal",
   });
   const [error, setError] = useState("");
+  const [settleModal, setSettleModal] = useState(null); // { owedTo, maxAmount }
+  const [settleAmount, setSettleAmount] = useState("");
 
   useEffect(() => {
     if (authLoading) return;
@@ -123,14 +125,27 @@ export default function GroupDetail() {
       setError(err.response?.data?.message || "Failed to add expense");
     }
   };
-  const handleSettle = async (balance) => {
+  const openSettleModal = (balance) => {
+    setSettleModal({ owedTo: balance.owedTo, maxAmount: balance.amount });
+    setSettleAmount(balance.amount.toFixed(2));
+    setError("");
+  };
+
+  const handleSettle = async () => {
+    const amt = parseFloat(settleAmount);
+    if (!amt || amt <= 0 || amt > settleModal.maxAmount) {
+      setError(`Enter a valid amount between ₹0.01 and ₹${settleModal.maxAmount}`);
+      return;
+    }
     setError("");
     try {
       await api.post(`/groups/${id}/settle`, {
-        paidToId: balance.owedTo,
-        amount: balance.amount,
+        paidToId: settleModal.owedTo,
+        amount: amt,
       });
-      toast.success("Settlement request sent! ✅");
+      toast.success("Settlement request sent!");
+      setSettleModal(null);
+      setSettleAmount("");
       fetchAll();
     } catch (err) {
       setError(err.response?.data?.message || "Failed to settle");
@@ -423,7 +438,7 @@ export default function GroupDetail() {
                         </p>
                       </div>
                       <span className="text-lg font-bold text-gray-800">
-                        ₹{(expense.amount / 100).toFixed(2)}
+                        ₹{expense.amount.toFixed(2)}
                       </span>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
@@ -436,7 +451,7 @@ export default function GroupDetail() {
                               : "bg-red-100 text-red-600"
                           }`}
                         >
-                          {split.user.name}: ₹{(split.share / 100).toFixed(2)}{" "}
+                          {split.user.name}: ₹{split.share.toFixed(2)}{" "}
                           {split.paid ? "✓" : "✗"}
                         </span>
                       ))}
@@ -489,7 +504,7 @@ export default function GroupDetail() {
                       </div>
                       {balance.owedBy === user?._id && (
                         <button
-                          onClick={() => handleSettle(balance)}
+                          onClick={() => openSettleModal(balance)}
                           className="bg-green-600 text-white w-full py-3 rounded-lg text-base hover:bg-green-700 transition text-sm font-medium"
                         >
                           Settle Up
@@ -503,6 +518,44 @@ export default function GroupDetail() {
           </div>
         )}
       </div>
+      {/* Settle Modal */}
+      {settleModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+            <h2 className="text-lg font-semibold mb-1">Settle Up</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Max: ₹{settleModal.maxAmount.toFixed(2)}
+            </p>
+            <input
+              type="number"
+              inputMode="decimal"
+              min="0.01"
+              max={settleModal.maxAmount}
+              step="0.01"
+              value={settleAmount}
+              onChange={(e) => setSettleAmount(e.target.value)}
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-green-500 mb-3"
+              placeholder="Enter amount"
+            />
+            {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
+            <div className="flex gap-3">
+              <button
+                onClick={handleSettle}
+                className="flex-1 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition"
+              >
+                Send
+              </button>
+              <button
+                onClick={() => { setSettleModal(null); setSettleAmount(""); setError(""); }}
+                className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-300 transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {activeTab === "expenses" && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-3 pb-5 flex justify-end">
           <button
