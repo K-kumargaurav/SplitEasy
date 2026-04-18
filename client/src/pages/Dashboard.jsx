@@ -361,20 +361,28 @@ export default function Dashboard() {
   const handlePhotoChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 500 * 1024) { toast.error("Image must be under 500 KB"); return; }
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const base64 = ev.target.result;
-      setProfileSaving(true);
-      try {
-        const { data } = await api.put("/users/profile", { profilePhoto: base64 });
-        setProfileData((p) => ({ ...p, profilePhoto: data.profilePhoto }));
-        updateUser({ profilePhoto: data.profilePhoto });
-        toast.success("Photo updated");
-      } catch { toast.error("Failed to update photo"); }
-      finally { setProfileSaving(false); }
-    };
-    reader.readAsDataURL(file);
+    if (file.size > 10 * 1024 * 1024) { toast.error("Image must be under 10 MB"); return; }
+    setProfileSaving(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
+      formData.append("folder", "spliteasy/profiles");
+
+      const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+      const res = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+        { method: "POST", body: formData }
+      );
+      if (!res.ok) throw new Error("Cloudinary upload failed");
+      const { secure_url } = await res.json();
+
+      const { data } = await api.put("/users/profile", { profilePhoto: secure_url });
+      setProfileData((p) => ({ ...p, profilePhoto: data.profilePhoto }));
+      updateUser({ profilePhoto: data.profilePhoto });
+      toast.success("Photo updated");
+    } catch { toast.error("Failed to update photo"); }
+    finally { setProfileSaving(false); }
   };
 
   const handleBioSave = async () => {
@@ -861,17 +869,21 @@ export default function Dashboard() {
                   {initials}
                 </div>
               )}
-              {/* Camera overlay */}
+              {/* Camera overlay / upload spinner */}
               <div className="absolute inset-0 bg-black/30 flex items-center justify-center
                               opacity-0 hover:opacity-100 transition">
-                <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                        d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0
-                           011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0
-                           01-2-2V9z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                        d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
+                {profileSaving ? (
+                  <div className="w-6 h-6 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                ) : (
+                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                          d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0
+                             011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0
+                             01-2-2V9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                          d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                )}
               </div>
             </button>
             {/* Online dot */}
