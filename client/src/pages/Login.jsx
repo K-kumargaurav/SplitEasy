@@ -88,6 +88,7 @@ export default function Login() {
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
 
   const handleGoogleSuccess = async ({ credential }) => {
+    if (loading) return;
     setLoading(true);
     setError("");
     try {
@@ -95,7 +96,7 @@ export default function Login() {
       login(data.user, data.token);
       navigate("/dashboard");
     } catch (err) {
-      setError(err.response?.data?.message || "Google login failed");
+      setError(err.response?.data?.message || t("login.google_failed"));
     } finally {
       setLoading(false);
     }
@@ -180,7 +181,7 @@ export default function Login() {
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
-                placeholder="••••••••"
+                placeholder={showPassword ? t("login.password") : "••••••••"}
                 value={form.password}
                 onChange={handleChange("password")}
                 autoComplete="current-password"
@@ -223,10 +224,10 @@ export default function Login() {
           </div>
 
           {/* Google login */}
-          <div className="flex justify-center">
+          <div className={`flex justify-center ${loading ? "pointer-events-none opacity-50" : ""}`}>
             <GoogleLogin
               onSuccess={handleGoogleSuccess}
-              onError={() => setError("Google login failed")}
+              onError={() => setError(t("login.google_failed"))}
               theme="outline"
               shape="rectangular"
               size="large"

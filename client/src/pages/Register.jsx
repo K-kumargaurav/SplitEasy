@@ -109,6 +109,7 @@ export default function Register() {
   const { t, lang, toggleLang } = useLanguage();
 
   const handleGoogleSuccess = async ({ credential }) => {
+    if (loading) return;
     setLoading(true);
     setError("");
     try {
@@ -116,7 +117,7 @@ export default function Register() {
       login(data.user, data.token);
       navigate("/dashboard");
     } catch (err) {
-      setError(err.response?.data?.message || "Google sign-up failed");
+      setError(err.response?.data?.message || t("reg.google_failed"));
     } finally {
       setLoading(false);
     }
@@ -243,11 +244,11 @@ export default function Register() {
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
-                placeholder={t("reg.pass_placeholder")}
+                placeholder={showPassword ? t("reg.pass_hint") : "••••••••"}
                 value={form.password}
                 onChange={handleChange("password")}
                 autoComplete="new-password"
-                minLength={6}
+                minLength={8}
                 required
                 className="w-full h-12 bg-white dark:bg-[#3a3a3c] border border-gray-200
                            dark:border-[#48484a] rounded-xl px-4 pr-12 text-base
@@ -266,6 +267,9 @@ export default function Register() {
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
+            <p className="mt-1.5 text-xs text-gray-400 dark:text-gray-500">
+              {t("reg.pass_hint")}
+            </p>
           </div>
 
           <button
@@ -286,10 +290,10 @@ export default function Register() {
           </div>
 
           {/* Google sign-up */}
-          <div className="flex justify-center">
+          <div className={`flex justify-center ${loading ? "pointer-events-none opacity-50" : ""}`}>
             <GoogleLogin
               onSuccess={handleGoogleSuccess}
-              onError={() => setError("Google sign-up failed")}
+              onError={() => setError(t("reg.google_failed"))}
               theme="outline"
               shape="rectangular"
               size="large"
