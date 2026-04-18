@@ -37,8 +37,11 @@ app.use(
 /* ── Body parser with size limit ── */
 app.use(express.json({ limit: "10kb" }));
 
-/* ── Sanitize MongoDB operators from req.body / req.query / req.params ── */
-app.use(mongoSanitize());
+/* ── Sanitize MongoDB operators from req.body only (req.query is read-only in newer Node) ── */
+app.use((req, res, next) => {
+  if (req.body) mongoSanitize.sanitize(req.body, { allowDots: false });
+  next();
+});
 
 /* ── Rate limiters ── */
 const authLimiter = rateLimit({
