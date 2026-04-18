@@ -219,22 +219,36 @@ const sendInvite = async (req, res) => {
       return res.status(400).json({ message: "Invite already sent" });
     }
 
-    group.invites.push({ user: userId });
+    const isCreator = group.createdBy.toString() === req.user._id.toString();
 
-    await group.save();
+    if (isCreator) {
+      // Creator invites directly — invite goes straight to the user
+      group.invites.push({ user: userId, status: "pending" });
+      await group.save();
 
-    await sendNotification(
-      userId,
-      `${req.user.name} invited you to join "${group.name}"`,
-    );
-
-    if (global.io) {
-      global.io
-        .to(userId.toString())
-        .emit("new_invite", { groupId: group._id.toString() });
+      await sendNotification(userId, `${req.user.name} invited you to join "${group.name}"`);
+      if (global.io) {
+        global.io.to(userId.toString()).emit("new_invite", { groupId: group._id.toString() });
+      }
+      res.json({ message: "Invite sent successfully" });
+    } else {
+      // Non-creator member — notify creator for approval first
+      await sendNotification(
+        group.createdBy,
+        `${req.user.name} wants to invite someone to "${group.name}". Open the group to approve.`,
+      );
+      if (global.io) {
+        global.io.to(group.createdBy.toString()).emit("invite_approval_needed", {
+          groupId: group._id.toString(),
+          requestedBy: req.user.name,
+          inviteeId: userId,
+        });
+      }
+      // Store a pending-approval invite (reuse invites array with status "pending_approval")
+      group.invites.push({ user: userId, status: "pending_approval", requestedBy: req.user._id });
+      await group.save();
+      res.json({ message: "Invite request sent to group creator for approval" });
     }
-
-    res.json({ message: "Invite sent successfully" });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -299,6 +313,58 @@ const respondToInvite = async (req, res) => {
   }
 };
 
+// @PUT /api/groups/:id/invite/approve  (creator only — approve or reject a pending_approval invite)
+const approveInvite = async (req, res) => {
+  try {
+    const { userId, approved } = req.body;
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ message: "Group not found" });
+
+    if (group.createdBy.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "Only the creator can approve invites" });
+    }
+
+    const invite = group.invites.find(
+      (i) => i.user.toString() === userId && i.status === "pending_approval"
+    );
+    if (!invite) return res.status(404).json({ message: "Invite request not found" });
+
+    // Remove the pending_approval entry
+    group.invites = group.invites.filter(
+      (i) => !(i.user.toString() === userId && i.status === "pending_approval")
+    );
+
+    if (approved) {
+      // Promote to a real invite
+      group.invites.push({ user: userId, status: "pending" });
+      await group.save();
+
+      await sendNotification(userId, `${req.user.name} invited you to join "${group.name}"`);
+      if (global.io) {
+        global.io.to(userId.toString()).emit("new_invite", { groupId: group._id.toString() });
+      }
+      if (invite.requestedBy) {
+        await sendNotification(
+          invite.requestedBy,
+          `Your invite request for "${group.name}" was approved by the creator`,
+        );
+      }
+      res.json({ message: "Invite approved and sent" });
+    } else {
+      await group.save();
+      if (invite.requestedBy) {
+        await sendNotification(
+          invite.requestedBy,
+          `Your invite request for "${group.name}" was declined by the creator`,
+        );
+      }
+      res.json({ message: "Invite request declined" });
+    }
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
 // @GET /api/groups/invites/pending
 const getPendingInvites = async (req, res) => {
   try {
@@ -318,6 +384,90 @@ const getPendingInvites = async (req, res) => {
     }));
 
     res.json(invites);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// @DELETE /api/groups/:id/leave
+const leaveGroup = async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ message: "Group not found" });
+
+    if (!group.members.some((m) => m.toString() === req.user._id.toString())) {
+      return res.status(403).json({ message: "Not a member of this group" });
+    }
+
+    if (group.createdBy.toString() === req.user._id.toString()) {
+      return res.status(400).json({ message: "Group creator cannot leave. Delete the group instead." });
+    }
+
+    group.members = group.members.filter((m) => m.toString() !== req.user._id.toString());
+    await group.save();
+
+    await sendNotification(
+      group.createdBy,
+      `${req.user.name} left "${group.name}"`,
+    );
+
+    res.json({ message: "You have left the group" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// @DELETE /api/groups/:id/members/:memberId  (creator only)
+const removeMember = async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ message: "Group not found" });
+
+    if (group.createdBy.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "Only the group creator can remove members" });
+    }
+
+    if (req.params.memberId === req.user._id.toString()) {
+      return res.status(400).json({ message: "You cannot remove yourself" });
+    }
+
+    group.members = group.members.filter((m) => m.toString() !== req.params.memberId);
+    await group.save();
+
+    await sendNotification(
+      req.params.memberId,
+      `You were removed from "${group.name}"`,
+    );
+
+    res.json({ message: "Member removed" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// @PUT /api/groups/:id/expenses/:expenseId  (payer only)
+const editExpense = async (req, res) => {
+  try {
+    const { description, category } = req.body;
+    const expense = await Expense.findById(req.params.expenseId);
+    if (!expense) return res.status(404).json({ message: "Expense not found" });
+    if (expense.group.toString() !== req.params.id)
+      return res.status(400).json({ message: "Expense does not belong to this group" });
+    if (expense.paidBy.toString() !== req.user._id.toString())
+      return res.status(403).json({ message: "Only the payer can edit this expense" });
+
+    if (description) expense.description = description;
+    if (category)    expense.category    = category;
+    await expense.save();
+
+    await expense.populate("paidBy", "name email");
+    await expense.populate("splitBetween.user", "name email");
+    await expense.populate("comments.user", "name");
+
+    expense.amount = expense.amount / 100;
+    expense.splitBetween.forEach((s) => { s.share = s.share / 100; });
+
+    res.json({ expense });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -378,9 +528,13 @@ module.exports = {
   addExpense,
   getGroupExpenses,
   deleteExpense,
+  editExpense,
   sendInvite,
   respondToInvite,
+  approveInvite,
   getPendingInvites,
+  leaveGroup,
+  removeMember,
   addComment,
   updateGroup,
 };

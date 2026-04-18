@@ -173,9 +173,16 @@ export default function GroupDetail() {
   const [memberProfile, setMemberProfile] = useState(null);
 
   /* ── Comments ── */
-  const [showCommentFor,  setShowCommentFor]  = useState(null); // expenseId
-  const [commentInputs,   setCommentInputs]   = useState({});   // { expenseId: text }
-  const [commentLoading,  setCommentLoading]  = useState(null); // expenseId being submitted
+  const [showCommentFor,  setShowCommentFor]  = useState(null);
+  const [commentInputs,   setCommentInputs]   = useState({});
+  const [commentLoading,  setCommentLoading]  = useState(null);
+
+  /* ── Edit expense ── */
+  const [editExpense,     setEditExpense]     = useState(null); // expense object being edited
+  const [editForm,        setEditForm]        = useState({ description: "", category: "other" });
+
+  /* ── Pending approval invites (creator only) ── */
+  const [pendingApprovals, setPendingApprovals] = useState([]);
 
   /* ─── Auth guard ─── */
   useEffect(() => {
@@ -207,6 +214,11 @@ export default function GroupDetail() {
         setMyPendingSettlements(pending);
       }
 
+      if (groupRes.status === "fulfilled") {
+        const g = groupRes.value.data;
+        const approvals = (g.invites || []).filter((i) => i.status === "pending_approval");
+        setPendingApprovals(approvals);
+      }
       if (groupRes.status    === "rejected") setError("Failed to load group");
       if (expensesRes.status === "rejected") setError("Failed to load expenses");
     } catch {
@@ -374,6 +386,53 @@ export default function GroupDetail() {
       toast.error(err.response?.data?.message || "Failed to add comment");
     } finally {
       setCommentLoading(null);
+    }
+  };
+
+  const handleLeaveGroup = async () => {
+    if (!window.confirm("Are you sure you want to leave this group?")) return;
+    try {
+      await api.delete(`/groups/${id}/leave`);
+      toast.success("You left the group");
+      navigate("/dashboard");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to leave group");
+    }
+  };
+
+  const handleRemoveMember = async (memberId, memberName) => {
+    if (!window.confirm(`Remove ${memberName} from the group?`)) return;
+    try {
+      await api.delete(`/groups/${id}/members/${memberId}`);
+      toast.success(`${memberName} removed`);
+      fetchAll();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to remove member");
+    }
+  };
+
+  const handleEditExpense = async () => {
+    if (!editExpense) return;
+    try {
+      const { data } = await api.put(`/groups/${id}/expenses/${editExpense._id}`, {
+        description: editForm.description,
+        category:    editForm.category,
+      });
+      setExpenses((prev) => prev.map((e) => (e._id === editExpense._id ? data.expense : e)));
+      setEditExpense(null);
+      toast.success("Expense updated");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to update expense");
+    }
+  };
+
+  const handleApproveInvite = async (userId, approved) => {
+    try {
+      await api.put(`/groups/${id}/invite/approve`, { userId, approved });
+      toast.success(approved ? "Invite approved and sent!" : "Invite request declined");
+      fetchAll();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to process invite");
     }
   };
 
@@ -576,32 +635,92 @@ export default function GroupDetail() {
             </button>
           </div>
           <div className="flex flex-wrap gap-2">
-            {group?.members.map((member) => (
-              <button
-                key={member._id}
-                onClick={() => openMemberProfile(member)}
-                className="flex items-center gap-1.5 bg-gray-50 dark:bg-[#3a3a3c]
-                           border border-gray-100 dark:border-[#48484a]
-                           px-3 py-1.5 rounded-full active:bg-gray-100
-                           dark:active:bg-[#48484a] touch-manipulation transition"
-              >
-                <div className="w-5 h-5 rounded-full bg-emerald-500
-                                flex items-center justify-center text-white
-                                text-[10px] font-bold select-none">
-                  {member.name[0].toUpperCase()}
+            {group?.members.map((member) => {
+              const isMe      = member._id === user?._id;
+              const isCreator = group.createdBy?._id === user?._id || group.createdBy === user?._id;
+              return (
+                <div key={member._id}
+                     className="flex items-center gap-1 bg-gray-50 dark:bg-[#3a3a3c]
+                                border border-gray-100 dark:border-[#48484a]
+                                px-2 py-1.5 rounded-full">
+                  <button
+                    onClick={() => openMemberProfile(member)}
+                    className="flex items-center gap-1.5 touch-manipulation"
+                  >
+                    <div className="w-5 h-5 rounded-full bg-emerald-500
+                                    flex items-center justify-center text-white
+                                    text-[10px] font-bold select-none">
+                      {member.name[0].toUpperCase()}
+                    </div>
+                    <span className="text-sm text-gray-700 dark:text-gray-200 font-medium">
+                      {member.name}
+                    </span>
+                    {isMe && (
+                      <span className="text-[10px] bg-emerald-600 text-white
+                                       px-1.5 py-0.5 rounded-full font-semibold select-none">
+                        YOU
+                      </span>
+                    )}
+                  </button>
+                  {/* Creator can remove others; non-creator can leave via their own chip */}
+                  {isCreator && !isMe && (
+                    <button
+                      onClick={() => handleRemoveMember(member._id, member.name)}
+                      className="w-4 h-4 flex items-center justify-center rounded-full
+                                 text-gray-400 hover:text-red-500 transition touch-manipulation ml-1"
+                      title={`Remove ${member.name}`}
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
-                <span className="text-sm text-gray-700 dark:text-gray-200 font-medium">
-                  {member.name}
-                </span>
-                {member._id === user?._id && (
-                  <span className="text-[10px] bg-emerald-600 text-white
-                                   px-1.5 py-0.5 rounded-full font-semibold select-none">
-                    YOU
-                  </span>
-                )}
-              </button>
-            ))}
+              );
+            })}
           </div>
+
+          {/* Leave group (non-creator only) */}
+          {group?.createdBy?._id !== user?._id && group?.createdBy !== user?._id && (
+            <button
+              onClick={handleLeaveGroup}
+              className="mt-3 text-xs text-red-500 font-medium touch-manipulation"
+            >
+              Leave group
+            </button>
+          )}
+
+          {/* Pending approval invites (creator only) */}
+          {pendingApprovals.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-gray-100 dark:border-[#3a3a3c] space-y-2">
+              <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider">
+                Invite Requests ({pendingApprovals.length})
+              </p>
+              {pendingApprovals.map((inv) => (
+                <div key={inv.user} className="flex items-center justify-between">
+                  <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
+                    User invited by a member
+                  </span>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => handleApproveInvite(inv.user, true)}
+                      className="text-xs px-2.5 py-1 bg-emerald-500 text-white
+                                 rounded-lg font-semibold touch-manipulation"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => handleApproveInvite(inv.user, false)}
+                      className="text-xs px-2.5 py-1 bg-gray-100 dark:bg-[#3a3a3c]
+                                 text-gray-600 dark:text-gray-300 rounded-lg font-semibold
+                                 touch-manipulation"
+                    >
+                      Decline
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           {inviteSuccess && (
             <p className="text-emerald-600 text-sm mt-3 font-medium">{inviteSuccess}</p>
           )}
@@ -716,29 +835,50 @@ export default function GroupDetail() {
                           ₹{expense.amount.toFixed(2)}
                         </span>
                         {expense.paidBy._id === user?._id && (
-                          <button
-                            onClick={async () => {
-                              if (!window.confirm("Delete this expense?")) return;
-                              try {
-                                await api.delete(`/groups/${id}/expenses/${expense._id}`);
-                                toast.success("Expense deleted");
-                                fetchAll();
-                              } catch (err) {
-                                toast.error(err.response?.data?.message || "Failed to delete");
-                              }
-                            }}
-                            className="w-7 h-7 flex items-center justify-center rounded-full
-                                       bg-red-50 dark:bg-red-900/20 text-red-500
-                                       active:bg-red-100 transition touch-manipulation"
-                            title="Delete expense"
-                          >
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0
-                                       01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0
-                                       00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
+                          <>
+                            {/* Edit */}
+                            <button
+                              onClick={() => {
+                                setEditExpense(expense);
+                                setEditForm({ description: expense.description, category: expense.category || "other" });
+                              }}
+                              className="w-7 h-7 flex items-center justify-center rounded-full
+                                         bg-blue-50 dark:bg-blue-900/20 text-blue-500
+                                         active:bg-blue-100 transition touch-manipulation"
+                              title="Edit expense"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0
+                                         002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828
+                                         15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                            {/* Delete */}
+                            <button
+                              onClick={async () => {
+                                if (!window.confirm("Delete this expense?")) return;
+                                try {
+                                  await api.delete(`/groups/${id}/expenses/${expense._id}`);
+                                  toast.success("Expense deleted");
+                                  fetchAll();
+                                } catch (err) {
+                                  toast.error(err.response?.data?.message || "Failed to delete");
+                                }
+                              }}
+                              className="w-7 h-7 flex items-center justify-center rounded-full
+                                         bg-red-50 dark:bg-red-900/20 text-red-500
+                                         active:bg-red-100 transition touch-manipulation"
+                              title="Delete expense"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0
+                                         01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0
+                                         00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </>
                         )}
                       </div>
                     </div>
@@ -1273,6 +1413,67 @@ export default function GroupDetail() {
           <p className="text-center text-gray-400 text-sm py-8">Could not load profile</p>
         )}
       </BottomSheet>
+
+      {/* ─────────── Edit Expense Dialog ─────────── */}
+      <Dialog
+        open={!!editExpense}
+        onClose={() => setEditExpense(null)}
+        title="Edit Expense"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+              Description
+            </label>
+            <input
+              type="text"
+              value={editForm.description}
+              onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}
+              className="w-full h-11 bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
+                         dark:border-[#48484a] rounded-xl px-4 text-base
+                         text-gray-900 dark:text-white focus:outline-none
+                         focus:border-emerald-500 transition"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+              Category
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {CATEGORIES.map((cat) => (
+                <button
+                  key={cat.value}
+                  type="button"
+                  onClick={() => setEditForm((p) => ({ ...p, category: cat.value }))}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm
+                              font-medium transition touch-manipulation
+                              ${editForm.category === cat.value
+                                ? "bg-emerald-500 text-white"
+                                : "bg-gray-100 dark:bg-[#3a3a3c] text-gray-600 dark:text-gray-300"}`}
+                >
+                  {cat.icon} {cat.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-3 pt-1">
+            <button
+              onClick={handleEditExpense}
+              className="flex-1 h-11 bg-emerald-500 active:bg-emerald-600
+                         text-white font-semibold rounded-xl transition touch-manipulation"
+            >
+              Save
+            </button>
+            <button
+              onClick={() => setEditExpense(null)}
+              className="flex-1 h-11 bg-gray-100 dark:bg-[#3a3a3c] text-gray-700
+                         dark:text-gray-200 font-semibold rounded-xl transition touch-manipulation"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </Dialog>
 
       {/* ─────────── Settle Up Dialog ─────────── */}
       <Dialog

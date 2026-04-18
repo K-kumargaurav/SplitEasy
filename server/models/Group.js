@@ -33,8 +33,12 @@ const groupSchema = new mongoose.Schema(
         },
         status: {
           type: String,
-          enum: ["pending", "accepted", "rejected"],
+          enum: ["pending", "accepted", "rejected", "pending_approval"],
           default: "pending",
+        },
+        requestedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
         },
       },
     ],
