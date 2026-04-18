@@ -130,7 +130,7 @@ const settleUp = async (req, res) => {
 
     res.status(201).json({
       message: "Settlement request sent",
-      settlement: { ...settlement.toObject(), amount: settlement.amount / 100 },
+      settlement: settlement.toObject(),
     });
   } catch (error) {
     res.status(500).json({ message: "Server error" });

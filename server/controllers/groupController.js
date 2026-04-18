@@ -9,6 +9,8 @@ const { notifyVoters } = require("./pendingActionController");
 const createGroup = async (req, res) => {
   try {
     const { name, description, members } = req.body;
+    if (!name || !String(name).trim())
+      return res.status(400).json({ message: "Group name is required" });
 
     const group = await Group.create({
       name,
@@ -76,6 +78,10 @@ const getGroupById = async (req, res) => {
 const addExpense = async (req, res) => {
   try {
     const { description, amount, splitType = "equal", customSplits, paidById, category = "other" } = req.body;
+    if (!description || typeof description !== "string" || !description.trim())
+      return res.status(400).json({ message: "Description is required" });
+    if (!amount || isNaN(amount) || amount <= 0 || amount > 1_000_000)
+      return res.status(400).json({ message: "Amount must be between ₹0.01 and ₹10,00,000" });
     const amountInPaise = Math.round(amount * 100);
     const group = await Group.findById(req.params.id);
 
@@ -108,6 +114,12 @@ const addExpense = async (req, res) => {
     } else {
       if (!customSplits || customSplits.length === 0) {
         return res.status(400).json({ message: "Custom splits required" });
+      }
+      const memberIds = group.members.map((m) => m.toString());
+      for (const s of customSplits) {
+        if (!memberIds.includes(s.userId)) {
+          return res.status(400).json({ message: "All split users must be group members" });
+        }
       }
       splitBetween = customSplits.map((s) => ({
         user: s.userId,
@@ -197,6 +209,7 @@ const deleteExpense = async (req, res) => {
 const sendInvite = async (req, res) => {
   try {
     const { userId } = req.body;
+    if (!userId) return res.status(400).json({ message: "userId is required" });
     const group = await Group.findById(req.params.id);
 
     if (!group) {
@@ -443,6 +456,9 @@ const removeMember = async (req, res) => {
     if (req.params.memberId === req.user._id.toString())
       return res.status(400).json({ message: "You cannot remove yourself" });
 
+    if (!group.members.some((m) => m.toString() === req.params.memberId))
+      return res.status(404).json({ message: "User is not a member of this group" });
+
     // Block duplicate requests
     const existing = await PendingAction.findOne({
       group: group._id, type: "remove_member",
@@ -539,9 +555,12 @@ const updateGroup = async (req, res) => {
     }
 
     const { groupPhoto, name, description } = req.body;
-    if (groupPhoto !== undefined) group.groupPhoto = groupPhoto;
-    if (name !== undefined) group.name = name;
-    if (description !== undefined) group.description = description;
+    if (groupPhoto !== undefined) {
+      if (groupPhoto === "" || /^https:\/\/.+/.test(groupPhoto))
+        group.groupPhoto = groupPhoto;
+    }
+    if (name !== undefined) group.name = String(name).trim().slice(0, 100);
+    if (description !== undefined) group.description = String(description).slice(0, 300);
 
     await group.save();
     await group.populate("members", "name email");

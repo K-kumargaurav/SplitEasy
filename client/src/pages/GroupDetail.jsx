@@ -420,24 +420,24 @@ export default function GroupDetail() {
   };
 
   const handleLeaveGroup = async () => {
-    if (!window.confirm("Are you sure you want to leave this group?")) return;
+    if (!window.confirm("Request to leave this group? The creator must approve.")) return;
     try {
       await api.delete(`/groups/${id}/leave`);
-      toast.success("You left the group");
-      navigate("/dashboard");
+      toast.success("Leave request sent to group creator");
+      fetchAll();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to leave group");
+      toast.error(err.response?.data?.message || "Failed to send leave request");
     }
   };
 
   const handleRemoveMember = async (memberId, memberName) => {
-    if (!window.confirm(`Remove ${memberName} from the group?`)) return;
+    if (!window.confirm(`Start a vote to remove ${memberName}? Other members must approve.`)) return;
     try {
       await api.delete(`/groups/${id}/members/${memberId}`);
-      toast.success(`${memberName} removed`);
+      toast.success(`Removal vote started for ${memberName}`);
       fetchAll();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to remove member");
+      toast.error(err.response?.data?.message || "Failed to start removal vote");
     }
   };
 
