@@ -204,6 +204,33 @@ export default function Dashboard() {
   const [newGroup,        setNewGroup]        = useState({ name: "", description: "" });
   const [selectedMembers, setSelectedMembers] = useState([]);
 
+  /* ── PWA install prompt ── */
+  const [installPrompt,    setInstallPrompt]    = useState(null);
+  const [showInstallBar,   setShowInstallBar]   = useState(false);
+  const [isOffline,        setIsOffline]        = useState(!navigator.onLine);
+
+  useEffect(() => {
+    const onPrompt  = (e) => { e.preventDefault(); setInstallPrompt(e); setShowInstallBar(true); };
+    const onOnline  = () => setIsOffline(false);
+    const onOffline = () => setIsOffline(true);
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    window.addEventListener("online",  onOnline);
+    window.addEventListener("offline", onOffline);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("online",  onOnline);
+      window.removeEventListener("offline", onOffline);
+    };
+  }, []);
+
+  const handleInstall = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === "accepted") setShowInstallBar(false);
+    setInstallPrompt(null);
+  };
+
   /* ── Profile tab state ── */
   const [profileData,        setProfileData]        = useState(null);
   const [profileLoading,     setProfileLoading]     = useState(false);
@@ -1366,6 +1393,39 @@ export default function Dashboard() {
           </div>
         </div>
       </header>
+
+      {/* ── Offline banner ── */}
+      {isOffline && (
+        <div className="bg-amber-500 text-white text-center text-sm font-medium py-2 px-4 select-none">
+          📶 You're offline — showing cached data
+        </div>
+      )}
+
+      {/* ── Install banner ── */}
+      {showInstallBar && !isOffline && (
+        <div className="bg-emerald-500 text-white px-4 py-2.5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-lg shrink-0">📲</span>
+            <p className="text-sm font-medium truncate">Install SplitEasy on your device</p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={handleInstall}
+              className="text-sm font-bold bg-white text-emerald-600 px-3 py-1
+                         rounded-full touch-manipulation active:opacity-80 transition"
+            >
+              Install
+            </button>
+            <button
+              onClick={() => setShowInstallBar(false)}
+              className="text-white/80 hover:text-white transition touch-manipulation text-lg leading-none"
+              aria-label="Dismiss"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Scrollable content ── */}
       <main className="max-w-lg mx-auto px-4 py-5 pb-36 space-y-6">
