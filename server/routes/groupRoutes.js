@@ -17,6 +17,7 @@ const {
   removeMember,
   addComment,
   updateGroup,
+  deleteGroup,
 } = require('../controllers/groupController');
 
 router.post("/", protect, createGroup);
@@ -24,6 +25,7 @@ router.get("/", protect, getGroups);
 router.get('/invites/pending', protect, getPendingInvites);
 router.get("/:id", protect, getGroupById);
 router.put("/:id", protect, updateGroup);
+router.delete("/:id", protect, deleteGroup);
 router.delete("/:id/leave", protect, leaveGroup);
 router.delete("/:id/members/:memberId", protect, removeMember);
 router.post("/:id/expenses", protect, addExpense);

@@ -172,6 +172,16 @@ const translations = {
     "gd.save":                   "Save",
     "gd.you_label":              "You",
 
+    // Edit / delete group
+    "gd.edit_group":             "Edit Group",
+    "gd.group_name":             "Group Name",
+    "gd.group_desc":             "Description",
+    "gd.group_desc_optional":    "(optional)",
+    "gd.save_group":             "Save Changes",
+    "gd.delete_group":           "Delete Group",
+    "gd.confirm_delete_group":   "Delete \"{name}\"? This will permanently remove all expenses and cannot be undone.",
+    "gd.deleting":               "Deleting…",
+
     // Confirm dialogs
     "gd.confirm_leave":   "Request to leave this group? The creator must approve.",
     "gd.confirm_remove":  "Start a vote to remove {name}? Other members must approve.",
@@ -406,6 +416,16 @@ const translations = {
     "gd.cancel":                 "रद्द करें",
     "gd.save":                   "सहेजें",
     "gd.you_label":              "आप",
+
+    // Edit / delete group
+    "gd.edit_group":             "समूह संपादित करें",
+    "gd.group_name":             "समूह का नाम",
+    "gd.group_desc":             "विवरण",
+    "gd.group_desc_optional":    "(वैकल्पिक)",
+    "gd.save_group":             "बदलाव सहेजें",
+    "gd.delete_group":           "समूह हटाएं",
+    "gd.confirm_delete_group":   "\"{name}\" हटाएं? सभी खर्चे स्थायी रूप से हट जाएंगे।",
+    "gd.deleting":               "हटा रहे हैं…",
 
     // Confirm dialogs
     "gd.confirm_leave":   "इस समूह को छोड़ने का अनुरोध करें? क्रिएटर को मंजूरी देनी होगी।",

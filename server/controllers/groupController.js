@@ -1,5 +1,6 @@
 const Group         = require("../models/Group");
 const Expense       = require("../models/Expense");
+const Settlement    = require("../models/Settlement");
 const User          = require("../models/User");
 const PendingAction = require("../models/PendingAction");
 const sendNotification = require("../utils/sendNotification");
@@ -544,6 +545,26 @@ const addComment = async (req, res) => {
   }
 };
 
+// @DELETE /api/groups/:id  (creator only)
+const deleteGroup = async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ message: "Group not found" });
+
+    if (group.createdBy.toString() !== req.user._id.toString())
+      return res.status(403).json({ message: "Only the group creator can delete this group" });
+
+    await Expense.deleteMany({ group: group._id });
+    await Settlement.deleteMany({ group: group._id });
+    await PendingAction.deleteMany({ group: group._id });
+    await group.deleteOne();
+
+    res.json({ message: "Group deleted" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 // @PUT /api/groups/:id
 const updateGroup = async (req, res) => {
   try {
@@ -588,4 +609,5 @@ module.exports = {
   removeMember,
   addComment,
   updateGroup,
+  deleteGroup,
 };

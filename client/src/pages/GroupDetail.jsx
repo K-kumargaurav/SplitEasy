@@ -188,7 +188,15 @@ export default function GroupDetail() {
 
   /* ── Pending actions (voting system) ── */
   const [pendingActions,   setPendingActions]   = useState([]);
-  const [votingId,         setVotingId]         = useState(null); // actionId being submitted
+  const [votingId,         setVotingId]         = useState(null);
+
+  /* ── Edit / Delete group ── */
+  const [showGroupMenu,    setShowGroupMenu]    = useState(false);
+  const [showEditGroup,    setShowEditGroup]    = useState(false);
+  const [editGroupForm,    setEditGroupForm]    = useState({ name: "", description: "" });
+  const [editGroupSaving,  setEditGroupSaving]  = useState(false);
+  const [deletingGroup,    setDeletingGroup]    = useState(false);
+  const groupMenuRef                            = useRef(null);
 
   /* ─── Auth guard ─── */
   useEffect(() => {
@@ -196,6 +204,16 @@ export default function GroupDetail() {
     if (!user) { navigate("/login"); return; }
     fetchAll();
   }, [id, user, authLoading]);
+
+  /* ─── Click-outside to close group menu ─── */
+  useEffect(() => {
+    const handler = (e) => {
+      if (groupMenuRef.current && !groupMenuRef.current.contains(e.target))
+        setShowGroupMenu(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   /* ─────── Data fetching ─────── */
 
@@ -468,6 +486,38 @@ export default function GroupDetail() {
     }
   };
 
+  const handleEditGroup = async (e) => {
+    e.preventDefault();
+    if (!editGroupForm.name.trim()) return;
+    setEditGroupSaving(true);
+    try {
+      const { data } = await api.put(`/groups/${id}`, {
+        name:        editGroupForm.name.trim(),
+        description: editGroupForm.description.trim(),
+      });
+      setGroup((g) => ({ ...g, name: data.name, description: data.description }));
+      setShowEditGroup(false);
+      toast.success("Group updated");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to update group");
+    } finally {
+      setEditGroupSaving(false);
+    }
+  };
+
+  const handleDeleteGroup = async () => {
+    if (!window.confirm(t("gd.confirm_delete_group", { name: group?.name || "" }))) return;
+    setDeletingGroup(true);
+    try {
+      await api.delete(`/groups/${id}`);
+      toast.success("Group deleted");
+      navigate("/dashboard");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to delete group");
+      setDeletingGroup(false);
+    }
+  };
+
   const openMemberProfile = async (member) => {
     if (member._id === user?._id) return;
     setMemberProfile({ loading: true, data: null, memberId: member._id, name: member.name });
@@ -638,6 +688,66 @@ export default function GroupDetail() {
                            rounded-full shrink-0 select-none">
             {group?.members.length} {t("gd.members_count")}
           </span>
+
+          {/* ⋯ menu — creator only */}
+          {(group?.createdBy?._id === user?._id || group?.createdBy === user?._id) && (
+            <div className="relative shrink-0" ref={groupMenuRef}>
+              <button
+                onClick={() => setShowGroupMenu((v) => !v)}
+                className="w-9 h-9 flex items-center justify-center rounded-full
+                           hover:bg-gray-100 dark:hover:bg-[#3a3a3c]
+                           active:bg-gray-200 dark:active:bg-[#48484a]
+                           transition touch-manipulation text-gray-500 dark:text-gray-400
+                           text-lg font-bold select-none"
+                aria-label="Group options"
+              >
+                ⋯
+              </button>
+              {showGroupMenu && (
+                <div className="absolute right-0 top-11 w-44 bg-white dark:bg-[#2c2c2e]
+                                rounded-2xl shadow-xl border border-gray-100
+                                dark:border-[#3a3a3c] overflow-hidden z-20">
+                  <button
+                    onClick={() => {
+                      setEditGroupForm({ name: group?.name || "", description: group?.description || "" });
+                      setShowEditGroup(true);
+                      setShowGroupMenu(false);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-4 py-3
+                               text-sm font-medium text-gray-700 dark:text-gray-200
+                               hover:bg-gray-50 dark:hover:bg-[#3a3a3c]
+                               active:bg-gray-100 transition touch-manipulation"
+                  >
+                    <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0
+                               002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828
+                               15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    {t("gd.edit_group")}
+                  </button>
+                  <div className="h-px bg-gray-100 dark:bg-[#3a3a3c]" />
+                  <button
+                    onClick={() => { setShowGroupMenu(false); handleDeleteGroup(); }}
+                    disabled={deletingGroup}
+                    className="w-full flex items-center gap-2.5 px-4 py-3
+                               text-sm font-medium text-red-500
+                               hover:bg-red-50 dark:hover:bg-red-900/20
+                               active:bg-red-100 transition touch-manipulation
+                               disabled:opacity-50"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0
+                               01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0
+                               00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    {deletingGroup ? t("gd.deleting") : t("gd.delete_group")}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </header>
 
@@ -1630,6 +1740,70 @@ export default function GroupDetail() {
           </div>
         </div>
       </Dialog>
+
+      {/* ─────────── Edit Group Bottom Sheet ─────────── */}
+      <BottomSheet
+        open={showEditGroup}
+        onClose={() => setShowEditGroup(false)}
+        title={t("gd.edit_group")}
+      >
+        <form onSubmit={handleEditGroup} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+              {t("gd.group_name")}
+            </label>
+            <input
+              type="text"
+              value={editGroupForm.name}
+              onChange={(e) => setEditGroupForm((p) => ({ ...p, name: e.target.value }))}
+              maxLength={100}
+              required
+              className="w-full h-12 bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
+                         dark:border-[#48484a] rounded-xl px-4 text-base
+                         text-gray-900 dark:text-white placeholder-gray-400
+                         focus:outline-none focus:border-emerald-500
+                         focus:ring-2 focus:ring-emerald-500/20 transition"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+              {t("gd.group_desc")}{" "}
+              <span className="text-gray-400 font-normal">{t("gd.group_desc_optional")}</span>
+            </label>
+            <input
+              type="text"
+              value={editGroupForm.description}
+              onChange={(e) => setEditGroupForm((p) => ({ ...p, description: e.target.value }))}
+              maxLength={300}
+              className="w-full h-12 bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
+                         dark:border-[#48484a] rounded-xl px-4 text-base
+                         text-gray-900 dark:text-white placeholder-gray-400
+                         focus:outline-none focus:border-emerald-500
+                         focus:ring-2 focus:ring-emerald-500/20 transition"
+            />
+          </div>
+          <div className="flex gap-3 pt-1">
+            <button
+              type="submit"
+              disabled={editGroupSaving}
+              className="flex-1 h-12 bg-emerald-500 active:bg-emerald-600
+                         text-white font-semibold rounded-xl transition
+                         touch-manipulation disabled:opacity-50"
+            >
+              {editGroupSaving ? "…" : t("gd.save_group")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowEditGroup(false)}
+              className="flex-1 h-12 bg-gray-100 dark:bg-[#3a3a3c]
+                         text-gray-700 dark:text-gray-200 font-semibold rounded-xl
+                         transition touch-manipulation"
+            >
+              {t("gd.cancel")}
+            </button>
+          </div>
+        </form>
+      </BottomSheet>
 
       {/* ─────────── Settle Up Dialog ─────────── */}
       <Dialog
