@@ -106,7 +106,7 @@ export default function Register() {
 
   const { login }  = useAuth();
   const navigate   = useNavigate();
-  const { t }      = useLanguage();
+  const { t, lang, toggleLang } = useLanguage();
 
   const handleGoogleSuccess = async ({ credential }) => {
     setLoading(true);
@@ -145,6 +145,18 @@ export default function Register() {
                     flex flex-col items-center justify-center px-4 py-10">
 
       <ThemeToggle />
+
+      {/* Language toggle */}
+      <button
+        onClick={toggleLang}
+        className="absolute top-4 left-4 h-9 px-3 flex items-center justify-center
+                   rounded-full bg-white/80 dark:bg-[#2c2c2e]/80 backdrop-blur
+                   border border-gray-200 dark:border-[#3a3a3c] shadow-sm
+                   text-xs font-semibold text-gray-600 dark:text-gray-300
+                   touch-manipulation transition"
+      >
+        {lang === "en" ? "हिं" : "EN"}
+      </button>
 
       {/* Brand */}
       <div className="mb-8 text-center select-none">
