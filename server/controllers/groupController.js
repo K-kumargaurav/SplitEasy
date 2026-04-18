@@ -477,7 +477,7 @@ const removeMember = async (req, res) => {
   }
 };
 
-// @PUT /api/groups/:id/expenses/:expenseId  → creates an expense_edit PendingAction
+// @PUT /api/groups/:id/expenses/:expenseId
 const editExpense = async (req, res) => {
   try {
     const { description, category } = req.body;
@@ -486,42 +486,20 @@ const editExpense = async (req, res) => {
     if (expense.group.toString() !== req.params.id)
       return res.status(400).json({ message: "Expense does not belong to this group" });
     if (expense.paidBy.toString() !== req.user._id.toString())
-      return res.status(403).json({ message: "Only the payer can propose an edit" });
+      return res.status(403).json({ message: "Only the payer can edit this expense" });
 
-    // Block duplicate pending edits for the same expense
-    const existing = await PendingAction.findOne({
-      group: req.params.id, type: "expense_edit",
-      expenseId: req.params.expenseId, status: "pending",
-    });
-    if (existing)
-      return res.status(400).json({ message: "An edit for this expense is already awaiting approval" });
+    if (description) expense.description = description;
+    if (category)    expense.category    = category;
+    await expense.save();
 
-    const group = await Group.findById(req.params.id).select("members name");
+    await expense.populate("paidBy", "name email");
+    await expense.populate("splitBetween.user", "name email");
+    await expense.populate("comments.user", "name");
 
-    // All members except the payer must approve
-    const requiredVoters = group.members
-      .map((m) => m.toString())
-      .filter((m) => m !== req.user._id.toString());
+    expense.amount = expense.amount / 100;
+    expense.splitBetween.forEach((s) => { s.share = s.share / 100; });
 
-    const action = await PendingAction.create({
-      group:           group._id,
-      type:            "expense_edit",
-      initiator:       req.user._id,
-      expenseId:       expense._id,
-      proposedChanges: {
-        description: description || expense.description,
-        category:    category    || expense.category,
-      },
-      requiredVoters,
-    });
-
-    await notifyVoters(
-      requiredVoters,
-      `${req.user.name} proposed an edit to "${expense.description}" in "${group.name}" — open the group to approve or reject`,
-      group._id,
-    );
-
-    res.json({ message: "Edit request sent to all members for approval", actionId: action._id });
+    res.json({ message: "Expense updated", expense });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }

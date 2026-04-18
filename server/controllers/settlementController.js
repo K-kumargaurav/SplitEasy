@@ -162,8 +162,32 @@ const respondToSettlement = async (req, res) => {
     }
 
     settlement.status = status;
-
     await settlement.save();
+
+    // When accepted: mark splits as paid for the debtor in this group
+    if (status === "accepted") {
+      const expenses = await Expense.find({
+        group:  settlement.group,
+        paidBy: settlement.paidTo,
+      });
+
+      let remaining = settlement.amount; // in paise
+
+      for (const expense of expenses) {
+        let dirty = false;
+        for (const split of expense.splitBetween) {
+          if (split.user.toString() === settlement.paidBy.toString() && !split.paid) {
+            if (remaining >= split.share) {
+              remaining -= split.share;
+              split.paid = true;
+              dirty = true;
+            }
+          }
+        }
+        if (dirty) await expense.save();
+        if (remaining <= 0) break;
+      }
+    }
 
     await sendNotification(
       settlement.paidBy,

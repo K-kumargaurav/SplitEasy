@@ -764,6 +764,7 @@ export default function GroupDetail() {
         {/* ── Pending Actions (voting) ── */}
         {pendingActions.length > 0 && (() => {
           const myActions = pendingActions.filter((a) =>
+            a.type !== "expense_edit" &&
             a.requiredVoters.some((v) => (v._id || v).toString() === user?._id) &&
             !a.votes.some((v) => (v.user?._id || v.user).toString() === user?._id)
           );
