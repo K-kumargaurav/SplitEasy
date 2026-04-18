@@ -178,11 +178,15 @@ export default function GroupDetail() {
   const [commentLoading,  setCommentLoading]  = useState(null);
 
   /* ── Edit expense ── */
-  const [editExpense,     setEditExpense]     = useState(null); // expense object being edited
+  const [editExpense,     setEditExpense]     = useState(null);
   const [editForm,        setEditForm]        = useState({ description: "", category: "other" });
 
   /* ── Pending approval invites (creator only) ── */
   const [pendingApprovals, setPendingApprovals] = useState([]);
+
+  /* ── Pending actions (voting system) ── */
+  const [pendingActions,   setPendingActions]   = useState([]);
+  const [votingId,         setVotingId]         = useState(null); // actionId being submitted
 
   /* ─── Auth guard ─── */
   useEffect(() => {
@@ -195,11 +199,12 @@ export default function GroupDetail() {
 
   const fetchAll = async () => {
     try {
-      const [groupRes, expensesRes, balancesRes, settlementsRes] = await Promise.allSettled([
+      const [groupRes, expensesRes, balancesRes, settlementsRes, actionsRes] = await Promise.allSettled([
         api.get(`/groups/${id}`),
         api.get(`/groups/${id}/expenses`),
         api.get(`/groups/${id}/balances`),
         api.get(`/groups/${id}/settlements`),
+        api.get(`/groups/${id}/pending-actions`),
       ]);
 
       if (groupRes.status       === "fulfilled") setGroup(groupRes.value.data);
@@ -219,6 +224,7 @@ export default function GroupDetail() {
         const approvals = (g.invites || []).filter((i) => i.status === "pending_approval");
         setPendingApprovals(approvals);
       }
+      if (actionsRes.status === "fulfilled") setPendingActions(actionsRes.value.data);
       if (groupRes.status    === "rejected") setError("Failed to load group");
       if (expensesRes.status === "rejected") setError("Failed to load expenses");
     } catch {
@@ -386,6 +392,30 @@ export default function GroupDetail() {
       toast.error(err.response?.data?.message || "Failed to add comment");
     } finally {
       setCommentLoading(null);
+    }
+  };
+
+  const handleCastVote = async (actionId, approve) => {
+    setVotingId(actionId);
+    try {
+      const { data } = await api.post(`/groups/${id}/pending-actions/${actionId}/vote`, { approve });
+      if (data.resolved) {
+        toast.success(data.status === "approved" ? "Action approved ✓" : "Action rejected ✗");
+        fetchAll();
+      } else {
+        toast.success("Vote recorded");
+        setPendingActions((prev) =>
+          prev.map((a) =>
+            a._id === actionId
+              ? { ...a, votes: [...a.votes, { user: { _id: user._id, name: user.name }, approve }] }
+              : a
+          )
+        );
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to vote");
+    } finally {
+      setVotingId(null);
     }
   };
 
@@ -730,6 +760,98 @@ export default function GroupDetail() {
             </div>
           )}
         </div>
+
+        {/* ── Pending Actions (voting) ── */}
+        {pendingActions.length > 0 && (() => {
+          const myActions = pendingActions.filter((a) =>
+            a.requiredVoters.some((v) => (v._id || v).toString() === user?._id) &&
+            !a.votes.some((v) => (v.user?._id || v.user).toString() === user?._id)
+          );
+          if (myActions.length === 0) return null;
+          return (
+            <div className="bg-amber-50 dark:bg-amber-900/20 rounded-2xl shadow-sm overflow-hidden
+                            border border-amber-200/60 dark:border-amber-700/40">
+              <div className="px-4 py-3 border-b border-amber-200/60 dark:border-amber-700/40">
+                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400
+                               uppercase tracking-wider">
+                  🗳 Pending Approval ({myActions.length})
+                </p>
+              </div>
+              <div className="divide-y divide-amber-100 dark:divide-amber-800/30">
+                {myActions.map((action) => {
+                  const totalVoters  = action.requiredVoters.length;
+                  const approvals    = action.votes.filter((v) => v.approve).length;
+                  const rejections   = action.votes.filter((v) => !v.approve).length;
+                  const isVoting     = votingId === action._id;
+
+                  let headline = "";
+                  let detail   = "";
+                  if (action.type === "leave_request") {
+                    headline = `${action.initiator?.name} wants to leave`;
+                    detail   = "Approve or decline their leave request";
+                  } else if (action.type === "remove_member") {
+                    headline = `Remove ${action.targetUser?.name}?`;
+                    detail   = `Proposed by ${action.initiator?.name} · majority vote required`;
+                  } else if (action.type === "expense_edit") {
+                    headline = `Edit proposed for "${action.expenseId?.description || "expense"}"`;
+                    const changes = [];
+                    if (action.proposedChanges?.description)
+                      changes.push(`Desc: "${action.proposedChanges.description}"`);
+                    if (action.proposedChanges?.category)
+                      changes.push(`Cat: ${catLabel(action.proposedChanges.category)}`);
+                    detail = changes.length ? changes.join(" · ") : "Proposed by " + action.initiator?.name;
+                  }
+
+                  return (
+                    <div key={action._id} className="px-4 py-3.5">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white mb-0.5">
+                        {headline}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">{detail}</p>
+
+                      {/* Vote progress (for multi-voter actions) */}
+                      {totalVoters > 1 && (
+                        <div className="mb-3">
+                          <div className="flex justify-between text-xs text-gray-400 mb-1">
+                            <span>✓ {approvals} approved</span>
+                            <span>✗ {rejections} rejected</span>
+                          </div>
+                          <div className="h-1.5 bg-gray-200 dark:bg-[#3a3a3c] rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-emerald-500 rounded-full transition-all"
+                              style={{ width: `${totalVoters > 0 ? (approvals / totalVoters) * 100 : 0}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2">
+                        <button
+                          disabled={isVoting}
+                          onClick={() => handleCastVote(action._id, true)}
+                          className="flex-1 h-9 bg-emerald-500 active:bg-emerald-600
+                                     text-white text-sm font-semibold rounded-xl
+                                     transition touch-manipulation disabled:opacity-50"
+                        >
+                          {isVoting ? "…" : "Approve"}
+                        </button>
+                        <button
+                          disabled={isVoting}
+                          onClick={() => handleCastVote(action._id, false)}
+                          className="flex-1 h-9 bg-red-50 dark:bg-red-900/20 active:bg-red-100
+                                     text-red-600 dark:text-red-400 text-sm font-semibold
+                                     rounded-xl transition touch-manipulation disabled:opacity-50"
+                        >
+                          {isVoting ? "…" : "Decline"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── Tab switcher ── */}
         <div className="flex bg-gray-200 dark:bg-[#3a3a3c] rounded-2xl p-1">

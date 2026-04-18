@@ -35,15 +35,17 @@ app.get("/", (req, res) => {
 });
 
 // Routes
-const authRoutes = require("./routes/authRoutes");
-const userRoutes = require("./routes/userRoutes");
-const groupRoutes = require("./routes/groupRoutes");
-const settlementRoutes = require("./routes/settlementRoutes");
+const authRoutes          = require("./routes/authRoutes");
+const userRoutes          = require("./routes/userRoutes");
+const groupRoutes         = require("./routes/groupRoutes");
+const settlementRoutes    = require("./routes/settlementRoutes");
+const pendingActionRoutes = require("./routes/pendingActionRoutes");
 
-app.use("/api/auth", authRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/groups", groupRoutes);
-app.use("/api", settlementRoutes);
+app.use("/api/auth",    authRoutes);
+app.use("/api/users",   userRoutes);
+app.use("/api/groups",  groupRoutes);
+app.use("/api",         settlementRoutes);
+app.use("/api/groups/:id/pending-actions", pendingActionRoutes);
 
 // Create HTTP server
 const server = http.createServer(app);

@@ -1,7 +1,9 @@
-const Group = require("../models/Group");
-const Expense = require("../models/Expense");
-const User = require("../models/User");
+const Group         = require("../models/Group");
+const Expense       = require("../models/Expense");
+const User          = require("../models/User");
+const PendingAction = require("../models/PendingAction");
 const sendNotification = require("../utils/sendNotification");
+const { notifyVoters } = require("./pendingActionController");
 
 // @POST /api/groups
 const createGroup = async (req, res) => {
@@ -389,63 +391,93 @@ const getPendingInvites = async (req, res) => {
   }
 };
 
-// @DELETE /api/groups/:id/leave
+// @DELETE /api/groups/:id/leave  → creates a leave_request PendingAction
 const leaveGroup = async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
     if (!group) return res.status(404).json({ message: "Group not found" });
 
-    if (!group.members.some((m) => m.toString() === req.user._id.toString())) {
+    if (!group.members.some((m) => m.toString() === req.user._id.toString()))
       return res.status(403).json({ message: "Not a member of this group" });
-    }
 
-    if (group.createdBy.toString() === req.user._id.toString()) {
+    if (group.createdBy.toString() === req.user._id.toString())
       return res.status(400).json({ message: "Group creator cannot leave. Delete the group instead." });
-    }
 
-    group.members = group.members.filter((m) => m.toString() !== req.user._id.toString());
-    await group.save();
+    // Block duplicate requests
+    const existing = await PendingAction.findOne({
+      group: group._id, type: "leave_request",
+      targetUser: req.user._id, status: "pending",
+    });
+    if (existing)
+      return res.status(400).json({ message: "Your leave request is already pending creator approval" });
 
-    await sendNotification(
-      group.createdBy,
-      `${req.user.name} left "${group.name}"`,
+    const action = await PendingAction.create({
+      group:          group._id,
+      type:           "leave_request",
+      initiator:      req.user._id,
+      targetUser:     req.user._id,
+      requiredVoters: [group.createdBy],
+    });
+
+    await notifyVoters(
+      [group.createdBy],
+      `${req.user.name} wants to leave "${group.name}" — open the group to approve or reject`,
+      group._id,
     );
 
-    res.json({ message: "You have left the group" });
+    res.json({ message: "Leave request sent to group creator for approval", actionId: action._id });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
-// @DELETE /api/groups/:id/members/:memberId  (creator only)
+// @DELETE /api/groups/:id/members/:memberId  → creates a remove_member PendingAction
 const removeMember = async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
     if (!group) return res.status(404).json({ message: "Group not found" });
 
-    if (group.createdBy.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: "Only the group creator can remove members" });
-    }
+    if (group.createdBy.toString() !== req.user._id.toString())
+      return res.status(403).json({ message: "Only the group creator can initiate a member removal" });
 
-    if (req.params.memberId === req.user._id.toString()) {
+    if (req.params.memberId === req.user._id.toString())
       return res.status(400).json({ message: "You cannot remove yourself" });
-    }
 
-    group.members = group.members.filter((m) => m.toString() !== req.params.memberId);
-    await group.save();
+    // Block duplicate requests
+    const existing = await PendingAction.findOne({
+      group: group._id, type: "remove_member",
+      targetUser: req.params.memberId, status: "pending",
+    });
+    if (existing)
+      return res.status(400).json({ message: "A removal request for this member is already pending" });
 
-    await sendNotification(
-      req.params.memberId,
-      `You were removed from "${group.name}"`,
+    // Required voters = all members except creator (initiator) and the target
+    const requiredVoters = group.members
+      .map((m) => m.toString())
+      .filter((m) => m !== req.user._id.toString() && m !== req.params.memberId);
+
+    const action = await PendingAction.create({
+      group:          group._id,
+      type:           "remove_member",
+      initiator:      req.user._id,
+      targetUser:     req.params.memberId,
+      requiredVoters,
+    });
+
+    const targetUser = await User.findById(req.params.memberId).select("name");
+    await notifyVoters(
+      requiredVoters,
+      `${req.user.name} wants to remove ${targetUser?.name || "a member"} from "${group.name}" — open the group to vote`,
+      group._id,
     );
 
-    res.json({ message: "Member removed" });
+    res.json({ message: "Removal request sent to group members for vote", actionId: action._id });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
-// @PUT /api/groups/:id/expenses/:expenseId  (payer only)
+// @PUT /api/groups/:id/expenses/:expenseId  → creates an expense_edit PendingAction
 const editExpense = async (req, res) => {
   try {
     const { description, category } = req.body;
@@ -454,20 +486,42 @@ const editExpense = async (req, res) => {
     if (expense.group.toString() !== req.params.id)
       return res.status(400).json({ message: "Expense does not belong to this group" });
     if (expense.paidBy.toString() !== req.user._id.toString())
-      return res.status(403).json({ message: "Only the payer can edit this expense" });
+      return res.status(403).json({ message: "Only the payer can propose an edit" });
 
-    if (description) expense.description = description;
-    if (category)    expense.category    = category;
-    await expense.save();
+    // Block duplicate pending edits for the same expense
+    const existing = await PendingAction.findOne({
+      group: req.params.id, type: "expense_edit",
+      expenseId: req.params.expenseId, status: "pending",
+    });
+    if (existing)
+      return res.status(400).json({ message: "An edit for this expense is already awaiting approval" });
 
-    await expense.populate("paidBy", "name email");
-    await expense.populate("splitBetween.user", "name email");
-    await expense.populate("comments.user", "name");
+    const group = await Group.findById(req.params.id).select("members name");
 
-    expense.amount = expense.amount / 100;
-    expense.splitBetween.forEach((s) => { s.share = s.share / 100; });
+    // All members except the payer must approve
+    const requiredVoters = group.members
+      .map((m) => m.toString())
+      .filter((m) => m !== req.user._id.toString());
 
-    res.json({ expense });
+    const action = await PendingAction.create({
+      group:           group._id,
+      type:            "expense_edit",
+      initiator:       req.user._id,
+      expenseId:       expense._id,
+      proposedChanges: {
+        description: description || expense.description,
+        category:    category    || expense.category,
+      },
+      requiredVoters,
+    });
+
+    await notifyVoters(
+      requiredVoters,
+      `${req.user.name} proposed an edit to "${expense.description}" in "${group.name}" — open the group to approve or reject`,
+      group._id,
+    );
+
+    res.json({ message: "Edit request sent to all members for approval", actionId: action._id });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
