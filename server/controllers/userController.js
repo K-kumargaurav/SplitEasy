@@ -3,6 +3,7 @@ const Group = require("../models/Group");
 const Expense = require("../models/Expense");
 const Settlement = require("../models/Settlement");
 const bcrypt = require("bcryptjs");
+const sendEmail = require("../utils/sendEmail");
 
 // @GET /api/users/profile
 const getProfile = async (req, res) => {
@@ -88,17 +89,58 @@ const updateProfile = async (req, res) => {
   }
 };
 
+// @POST /api/users/send-password-otp
+const sendPasswordOtp = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    user.passwordOtp       = otp;
+    user.passwordOtpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+    await user.save();
+
+    await sendEmail({
+      to: user.email,
+      subject: "SplitEasy — Password Change OTP",
+      html: `
+        <div style="font-family:sans-serif;max-width:400px;margin:auto">
+          <h2 style="color:#10b981">SplitEasy</h2>
+          <p>Your one-time password to change your account password:</p>
+          <div style="font-size:32px;font-weight:bold;letter-spacing:8px;
+                      color:#111;background:#f3f4f6;padding:16px 24px;
+                      border-radius:12px;text-align:center;margin:16px 0">
+            ${otp}
+          </div>
+          <p style="color:#6b7280;font-size:13px">
+            This code expires in <strong>10 minutes</strong>.
+            If you didn't request this, ignore this email.
+          </p>
+        </div>
+      `,
+    });
+
+    res.json({ message: "OTP sent to your email" });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to send OTP", error: err.message });
+  }
+};
+
 // @PUT /api/users/change-password
 const changePassword = async (req, res) => {
   try {
-    const { oldPassword, newPassword } = req.body;
-    if (!oldPassword || !newPassword || newPassword.length < 6)
-      return res.status(400).json({ message: "Invalid password data" });
+    const { otp, newPassword } = req.body;
+    if (!otp || !newPassword || newPassword.length < 6)
+      return res.status(400).json({ message: "OTP and new password (min 6 chars) are required" });
+
     const user = await User.findById(req.user._id);
-    const isMatch = await bcrypt.compare(oldPassword, user.password);
-    if (!isMatch) return res.status(400).json({ message: "Current password is incorrect" });
+    if (!user.passwordOtp || user.passwordOtp !== otp)
+      return res.status(400).json({ message: "Invalid OTP" });
+    if (!user.passwordOtpExpiry || user.passwordOtpExpiry < new Date())
+      return res.status(400).json({ message: "OTP has expired. Please request a new one." });
+
     const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(newPassword, salt);
+    user.password          = await bcrypt.hash(newPassword, salt);
+    user.passwordOtp       = undefined;
+    user.passwordOtpExpiry = undefined;
     await user.save();
     res.json({ message: "Password changed successfully" });
   } catch (err) {
@@ -330,4 +372,5 @@ module.exports = {
   markNotificationsRead,
   getUserActivity,
   getUserDebts,
+  sendPasswordOtp,
 };

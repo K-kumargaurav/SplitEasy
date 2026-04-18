@@ -5,6 +5,7 @@ const { getProfile,
     getUserById,
     updateProfile,
     changePassword,
+    sendPasswordOtp,
     sendFriendRequest,
     acceptFriendRequest,
     getFriends,
@@ -17,6 +18,7 @@ const { getProfile,
 
 router.get("/profile", protect, getProfile);
 router.put("/profile", protect, updateProfile);
+router.post("/send-password-otp", protect, sendPasswordOtp);
 router.put("/change-password", protect, changePassword);
 router.post("/friend-request/:id", protect, sendFriendRequest);
 router.put("/friend-request/:id/accept", protect, acceptFriendRequest);

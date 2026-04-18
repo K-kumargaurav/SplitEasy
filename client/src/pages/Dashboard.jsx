@@ -208,8 +208,11 @@ export default function Dashboard() {
   const [bioText,            setBioText]            = useState("");
   const [profileSaving,      setProfileSaving]      = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
-  const [passwordForm,       setPasswordForm]       = useState({ old: "", new: "", confirm: "" });
-  const [showPw,             setShowPw]             = useState({ old: false, new: false, confirm: false });
+  const [pwStep,             setPwStep]             = useState("send"); // "send" | "verify"
+  const [otpSending,         setOtpSending]         = useState(false);
+  const [pwOtp,              setPwOtp]              = useState("");
+  const [passwordForm,       setPasswordForm]       = useState({ new: "", confirm: "" });
+  const [showPw,             setShowPw]             = useState({ new: false, confirm: false });
   const [passwordSaving,     setPasswordSaving]     = useState(false);
   const [passwordError,      setPasswordError]      = useState("");
   const [passwordSuccess,    setPasswordSuccess]    = useState(false);
@@ -422,6 +425,17 @@ export default function Dashboard() {
     } catch { setProfileData((p) => ({ ...p, isOnline: !next })); }
   };
 
+  const handleSendOtp = async () => {
+    setPasswordError("");
+    setOtpSending(true);
+    try {
+      await api.post("/users/send-password-otp");
+      setPwStep("verify");
+    } catch (err) {
+      setPasswordError(err.response?.data?.message || "Failed to send OTP");
+    } finally { setOtpSending(false); }
+  };
+
   const handleChangePassword = async (e) => {
     e.preventDefault();
     setPasswordError("");
@@ -432,11 +446,16 @@ export default function Dashboard() {
     if (passwordForm.new.length < 6) {
       setPasswordError("Password must be at least 6 characters"); return;
     }
+    if (!pwOtp.trim()) {
+      setPasswordError("Enter the OTP sent to your email"); return;
+    }
     setPasswordSaving(true);
     try {
-      await api.put("/users/change-password", { oldPassword: passwordForm.old, newPassword: passwordForm.new });
+      await api.put("/users/change-password", { otp: pwOtp.trim(), newPassword: passwordForm.new });
       setPasswordSuccess(true);
-      setPasswordForm({ old: "", new: "", confirm: "" });
+      setPasswordForm({ new: "", confirm: "" });
+      setPwOtp("");
+      setPwStep("send");
       setTimeout(() => { setPasswordSuccess(false); setShowChangePassword(false); }, 2000);
     } catch (err) {
       setPasswordError(err.response?.data?.message || "Failed to change password");
@@ -1052,7 +1071,7 @@ export default function Dashboard() {
         {/* ── Change Password ── */}
         <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm overflow-hidden">
           <button
-            onClick={() => { setShowChangePassword((v) => !v); setPasswordError(""); setPasswordSuccess(false); }}
+            onClick={() => { setShowChangePassword((v) => !v); setPasswordError(""); setPasswordSuccess(false); setPwStep("send"); setPwOtp(""); }}
             className="w-full flex items-center justify-between px-4 py-4
                        active:bg-gray-50 dark:active:bg-[#3a3a3c] transition touch-manipulation"
           >
@@ -1074,7 +1093,7 @@ export default function Dashboard() {
           </button>
 
           {showChangePassword && (
-            <form onSubmit={handleChangePassword} className="px-4 pb-4 space-y-3 border-t border-gray-100 dark:border-[#3a3a3c] pt-3">
+            <div className="px-4 pb-4 space-y-3 border-t border-gray-100 dark:border-[#3a3a3c] pt-3">
               {passwordError && (
                 <p className="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-xl">{passwordError}</p>
               )}
@@ -1083,42 +1102,99 @@ export default function Dashboard() {
                   Password changed successfully ✓
                 </p>
               )}
-              {[
-                { key: "old",     label: "Current Password",  auto: "current-password" },
-                { key: "new",     label: "New Password",      auto: "new-password" },
-                { key: "confirm", label: "Confirm Password",  auto: "new-password" },
-              ].map(({ key, label, auto }) => (
-                <div key={key}>
-                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{label}</label>
-                  <div className="relative">
+
+              {pwStep === "send" ? (
+                <>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    We'll send a 6-digit verification code to{" "}
+                    <span className="font-semibold text-gray-700 dark:text-gray-200">
+                      {profileData?.email || user?.email}
+                    </span>
+                  </p>
+                  <button
+                    onClick={handleSendOtp}
+                    disabled={otpSending}
+                    className="w-full h-11 bg-emerald-500 active:bg-emerald-600 text-white
+                               text-sm font-semibold rounded-xl transition touch-manipulation
+                               disabled:opacity-50"
+                  >
+                    {otpSending ? "Sending…" : "Send Verification Code"}
+                  </button>
+                </>
+              ) : (
+                <form onSubmit={handleChangePassword} className="space-y-3">
+                  <p className="text-xs text-emerald-600">
+                    ✓ Code sent! Check your email.
+                  </p>
+
+                  {/* OTP */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                      Verification Code
+                    </label>
                     <input
-                      type={showPw[key] ? "text" : "password"}
-                      value={passwordForm[key]}
-                      onChange={(e) => setPasswordForm((p) => ({ ...p, [key]: e.target.value }))}
-                      autoComplete={auto}
-                      required
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      placeholder="6-digit code"
+                      value={pwOtp}
+                      onChange={(e) => setPwOtp(e.target.value.replace(/\D/g, ""))}
                       className="w-full h-11 bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
-                                 dark:border-[#48484a] rounded-xl px-4 pr-11 text-sm
-                                 text-gray-900 dark:text-white placeholder-gray-400
+                                 dark:border-[#48484a] rounded-xl px-4 text-sm text-center
+                                 tracking-widest font-bold text-gray-900 dark:text-white
                                  focus:outline-none focus:border-emerald-500
                                  focus:ring-2 focus:ring-emerald-500/20 transition"
                     />
+                  </div>
+
+                  {/* New / Confirm password */}
+                  {[
+                    { key: "new",     label: "New Password" },
+                    { key: "confirm", label: "Confirm Password" },
+                  ].map(({ key, label }) => (
+                    <div key={key}>
+                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{label}</label>
+                      <div className="relative">
+                        <input
+                          type={showPw[key] ? "text" : "password"}
+                          value={passwordForm[key]}
+                          onChange={(e) => setPasswordForm((p) => ({ ...p, [key]: e.target.value }))}
+                          autoComplete="new-password"
+                          required
+                          className="w-full h-11 bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
+                                     dark:border-[#48484a] rounded-xl px-4 pr-11 text-sm
+                                     text-gray-900 dark:text-white placeholder-gray-400
+                                     focus:outline-none focus:border-emerald-500
+                                     focus:ring-2 focus:ring-emerald-500/20 transition"
+                        />
+                        <button type="button"
+                                onClick={() => setShowPw((p) => ({ ...p, [key]: !p[key] }))}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400
+                                           hover:text-gray-600 dark:hover:text-gray-300 transition p-1">
+                          {showPw[key] ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="flex gap-2">
+                    <button type="submit" disabled={passwordSaving}
+                            className="flex-1 h-11 bg-emerald-500 active:bg-emerald-600 text-white
+                                       text-sm font-semibold rounded-xl transition touch-manipulation
+                                       disabled:opacity-50">
+                      {passwordSaving ? "Changing…" : "Change Password"}
+                    </button>
                     <button type="button"
-                            onClick={() => setShowPw((p) => ({ ...p, [key]: !p[key] }))}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400
-                                       hover:text-gray-600 dark:hover:text-gray-300 transition p-1">
-                      {showPw[key] ? <EyeOff size={16} /> : <Eye size={16} />}
+                            onClick={() => { setPwStep("send"); setPwOtp(""); setPasswordError(""); }}
+                            className="h-11 px-4 bg-gray-100 dark:bg-[#3a3a3c] text-gray-600
+                                       dark:text-gray-300 text-sm font-semibold rounded-xl
+                                       transition touch-manipulation">
+                      Resend
                     </button>
                   </div>
-                </div>
-              ))}
-              <button type="submit" disabled={passwordSaving}
-                      className="w-full h-11 bg-emerald-500 active:bg-emerald-600 text-white
-                                 text-sm font-semibold rounded-xl transition touch-manipulation
-                                 disabled:opacity-50 mt-1">
-                {passwordSaving ? "Changing…" : "Change Password"}
-              </button>
-            </form>
+                </form>
+              )}
+            </div>
           )}
         </div>
 
