@@ -670,6 +670,8 @@ export default function GroupDetail() {
             {group?.members.map((member) => {
               const isMe      = member._id === user?._id;
               const isCreator = group.createdBy?._id === user?._id || group.createdBy === user?._id;
+              const hasDebt   = balances.some((b) => b.owedBy === member._id);
+              const allPaid   = !hasDebt;
               return (
                 <div key={member._id}
                      className="flex items-center gap-1 bg-gray-50 dark:bg-[#3a3a3c]
@@ -691,6 +693,14 @@ export default function GroupDetail() {
                       <span className="text-[10px] bg-emerald-600 text-white
                                        px-1.5 py-0.5 rounded-full font-semibold select-none">
                         {t("gd.you_badge")}
+                      </span>
+                    )}
+                    {allPaid && (
+                      <span className="text-[10px] bg-emerald-50 dark:bg-emerald-900/30
+                                       text-emerald-600 dark:text-emerald-400
+                                       border border-emerald-200 dark:border-emerald-700/40
+                                       px-1.5 py-0.5 rounded-full font-semibold select-none">
+                        ✓
                       </span>
                     )}
                   </button>
