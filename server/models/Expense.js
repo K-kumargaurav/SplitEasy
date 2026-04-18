@@ -62,4 +62,7 @@ const expenseSchema = new mongoose.Schema({
     }]
 }, { timestamps: true });
 
+expenseSchema.index({ group: 1 });
+expenseSchema.index({ paidBy: 1 });
+
 module.exports = mongoose.model("Expense", expenseSchema);

@@ -51,4 +51,6 @@ const pendingActionSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+pendingActionSchema.index({ group: 1, status: 1 });
+
 module.exports = mongoose.model("PendingAction", pendingActionSchema);

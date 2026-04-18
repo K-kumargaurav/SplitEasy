@@ -7,10 +7,14 @@ const { Server } = require("socket.io");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const mongoSanitize = require("express-mongo-sanitize");
+const compression = require("compression");
 const jwt = require("jsonwebtoken");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+/* ── Compression ── */
+app.use(compression());
 
 /* ── Security headers ── */
 app.use(helmet());

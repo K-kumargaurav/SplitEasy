@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { LanguageProvider } from './context/LanguageContext';
@@ -7,8 +8,8 @@ import { GoogleOAuthProvider } from "@react-oauth/google";
 
 import Login from './pages/Login';
 import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import GroupDetail from './pages/GroupDetail';
+const Dashboard   = lazy(() => import('./pages/Dashboard'));
+const GroupDetail = lazy(() => import('./pages/GroupDetail'));
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -21,21 +22,29 @@ const ProtectedRoute = ({ children }) => {
   return user ? children : <Navigate to="/login" />;
 };
 
+const PageFallback = () => (
+  <div className="flex items-center justify-center min-h-screen bg-[#efeff4] dark:bg-[#1c1c1e]">
+    <div className="w-8 h-8 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
+  </div>
+);
+
 function AppRoutes() {
   const { user } = useAuth();
 
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/dashboard" element={
-        <ProtectedRoute><Dashboard /></ProtectedRoute>
-      } />
-      <Route path="/groups/:id" element={
-        <ProtectedRoute><GroupDetail /></ProtectedRoute>
-      } />
-      <Route path="*" element={<Navigate to="/login" />} />
-    </Routes>
+    <Suspense fallback={<PageFallback />}>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/dashboard" element={
+          <ProtectedRoute><Dashboard /></ProtectedRoute>
+        } />
+        <Route path="/groups/:id" element={
+          <ProtectedRoute><GroupDetail /></ProtectedRoute>
+        } />
+        <Route path="*" element={<Navigate to="/login" />} />
+      </Routes>
+    </Suspense>
   );
 }
 

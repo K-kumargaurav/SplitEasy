@@ -46,4 +46,7 @@ const groupSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+groupSchema.index({ members: 1 });
+groupSchema.index({ createdBy: 1 });
+
 module.exports = mongoose.model("Group", groupSchema);

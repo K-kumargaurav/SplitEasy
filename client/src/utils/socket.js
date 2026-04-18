@@ -8,7 +8,10 @@ export function getSocket(token) {
 
   socket = io(import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000", {
     auth: { token },
-    autoConnect: true,
+    transports: ["websocket"],
+    reconnectionAttempts: 10,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
   });
 
   return socket;

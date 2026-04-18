@@ -340,8 +340,13 @@ export default function GroupDetail() {
         return setError(`Splits must add up to ₹${amt}. Currently ₹${total}`);
     }
 
+    // Close form immediately for instant feel
+    setNewExpense({ description: "", amount: "", splitType: "equal", paidById: "", category: "other" });
+    setCustomSplits([]);
+    setShowExpenseForm(false);
+
     try {
-      await api.post(`/groups/${id}/expenses`, {
+      const { data } = await api.post(`/groups/${id}/expenses`, {
         description:  newExpense.description,
         amount:       amt,
         splitType:    newExpense.splitType,
@@ -352,12 +357,12 @@ export default function GroupDetail() {
             ? customSplits.map((s) => ({ userId: s.userId, share: parseFloat(s.share) }))
             : undefined,
       });
-      setNewExpense({ description: "", amount: "", splitType: "equal", paidById: "", category: "other" });
-      setCustomSplits([]);
-      setShowExpenseForm(false);
-      fetchAll();
+      // Prepend new expense, then refresh only balances in background
+      setExpenses((prev) => [data.expense, ...prev]);
+      api.get(`/groups/${id}/balances`).then((r) => setBalances(r.data)).catch(() => {});
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to add expense");
+      toast.error(err.response?.data?.message || "Failed to add expense");
+      fetchAll();
     }
   };
 
@@ -1123,11 +1128,14 @@ export default function GroupDetail() {
                             <button
                               onClick={async () => {
                                 if (!window.confirm(t("gd.confirm_delete"))) return;
+                                const snapshot = expenses;
+                                setExpenses((prev) => prev.filter((e) => e._id !== expense._id));
                                 try {
                                   await api.delete(`/groups/${id}/expenses/${expense._id}`);
                                   toast.success("Expense deleted");
-                                  fetchAll();
+                                  api.get(`/groups/${id}/balances`).then((r) => setBalances(r.data)).catch(() => {});
                                 } catch (err) {
+                                  setExpenses(snapshot);
                                   toast.error(err.response?.data?.message || "Failed to delete");
                                 }
                               }}

@@ -30,4 +30,8 @@ const settlementSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+settlementSchema.index({ group: 1 });
+settlementSchema.index({ paidBy: 1, status: 1 });
+settlementSchema.index({ paidTo: 1, status: 1 });
+
 module.exports = mongoose.model("Settlement", settlementSchema);
