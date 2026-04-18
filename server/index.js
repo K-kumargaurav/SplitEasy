@@ -140,6 +140,21 @@ mongoose
     const User = require("./models/User");
     await User.updateMany({ country: { $exists: false } }, { $set: { country: "India" } });
 
+    /* Backfill missing usernames */
+    const usersWithoutUsername = await User.find({ username: { $exists: false } }).select("_id name");
+    for (const u of usersWithoutUsername) {
+      const base = (u.name || "user").toLowerCase().replace(/\s+/g, "").replace(/[^a-z0-9]/g, "").slice(0, 15) || "user";
+      let username, exists;
+      do {
+        username = `${base}${Math.floor(1000 + Math.random() * 9000)}`;
+        exists = await User.findOne({ username });
+      } while (exists);
+      await User.updateOne({ _id: u._id }, { $set: { username } });
+    }
+    if (usersWithoutUsername.length) {
+      console.log(`Backfilled usernames for ${usersWithoutUsername.length} user(s)`);
+    }
+
     server.listen(PORT, () => {
       console.log(`Server running on Port ${PORT}`);
     });

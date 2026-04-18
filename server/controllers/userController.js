@@ -240,23 +240,25 @@ const getFriends = async (req, res) => {
   }
 };
 
-// @GET /api/users/search?email=xxx
+// @GET /api/users/search?q=username_or_name
 const searchUsers = async (req, res) => {
   try {
-    const { email } = req.query;
+    const q = (req.query.q || "").trim().replace(/^@/, "").toLowerCase();
 
-    if (!email) {
-      return res.status(400).json({ message: "Email is required" });
+    if (!q || q.length < 2) {
+      return res.status(400).json({ message: "Query too short" });
     }
 
-    // Escape special regex chars to prevent ReDoS
-    const escaped = email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const users = await User.find({
-      email: { $regex: `^${escaped}`, $options: "i" },
+      $or: [
+        { username: { $regex: `^${escaped}`, $options: "i" } },
+        { name:     { $regex: escaped,        $options: "i" } },
+      ],
       _id: { $ne: req.user._id },
     })
-      .select("name email")
-      .limit(5);
+      .select("name email username profilePhoto")
+      .limit(6);
 
     res.json(users);
   } catch (error) {
