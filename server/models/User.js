@@ -17,8 +17,13 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: true,
       minlength: 6,
+      // optional — not set for Google-only accounts
+    },
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true,
     },
     username: {
       type: String,

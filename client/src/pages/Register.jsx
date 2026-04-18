@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import { GoogleLogin } from "@react-oauth/google";
 import api from "../utils/api";
 
 /* ─────────────────────────────────────────
@@ -105,6 +106,20 @@ export default function Register() {
   const { login }  = useAuth();
   const navigate   = useNavigate();
 
+  const handleGoogleSuccess = async ({ credential }) => {
+    setLoading(true);
+    setError("");
+    try {
+      const { data } = await api.post("/auth/google", { credential });
+      login(data.user, data.token);
+      navigate("/dashboard");
+    } catch (err) {
+      setError(err.response?.data?.message || "Google sign-up failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleChange = (field) => (e) =>
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
 
@@ -196,7 +211,7 @@ export default function Register() {
                            focus:ring-emerald-500/20 transition appearance-none"
               >
                 {COUNTRIES.map((c) => (
-                  <option key={c.name} value={c.name}>{c.flag} {c.name}</option>
+                  <option key={c.name} value={c.name}>{c.name}</option>
                 ))}
               </select>
               <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
@@ -248,6 +263,26 @@ export default function Register() {
           >
             {loading ? "Creating account…" : "Create Account"}
           </button>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-gray-200 dark:bg-[#3a3a3c]" />
+            <span className="text-xs text-gray-400 select-none">or</span>
+            <div className="flex-1 h-px bg-gray-200 dark:bg-[#3a3a3c]" />
+          </div>
+
+          {/* Google sign-up */}
+          <div className="flex justify-center">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={() => setError("Google sign-up failed")}
+              theme="outline"
+              shape="rectangular"
+              size="large"
+              width="100%"
+              text="signup_with"
+            />
+          </div>
         </form>
 
         <div className="border-t border-gray-100 dark:border-[#3a3a3c] px-5 py-4

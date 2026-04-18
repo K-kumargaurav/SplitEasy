@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import { GoogleLogin } from "@react-oauth/google";
 import api from "../utils/api";
 
 /* ─────────────────────────────────────────
@@ -83,6 +84,20 @@ export default function Login() {
 
   const handleChange = (field) => (e) =>
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
+
+  const handleGoogleSuccess = async ({ credential }) => {
+    setLoading(true);
+    setError("");
+    try {
+      const { data } = await api.post("/auth/google", { credential });
+      login(data.user, data.token);
+      navigate("/dashboard");
+    } catch (err) {
+      setError(err.response?.data?.message || "Google login failed");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -185,6 +200,26 @@ export default function Login() {
           >
             {loading ? "Signing in…" : "Sign In"}
           </button>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-gray-200 dark:bg-[#3a3a3c]" />
+            <span className="text-xs text-gray-400 select-none">or</span>
+            <div className="flex-1 h-px bg-gray-200 dark:bg-[#3a3a3c]" />
+          </div>
+
+          {/* Google login */}
+          <div className="flex justify-center">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={() => setError("Google login failed")}
+              theme="outline"
+              shape="rectangular"
+              size="large"
+              width="100%"
+              text="signin_with"
+            />
+          </div>
         </form>
 
         <div className="border-t border-gray-100 dark:border-[#3a3a3c] px-5 py-4
