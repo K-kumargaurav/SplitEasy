@@ -1261,6 +1261,19 @@ export default function Dashboard() {
 
           <div className="flex items-center gap-1">
 
+            {/* Language toggle */}
+            <button
+              onClick={toggleLang}
+              className="h-8 px-2.5 flex items-center justify-center rounded-full
+                         bg-gray-100 dark:bg-[#3a3a3c] hover:bg-gray-200
+                         dark:hover:bg-[#48484a] active:bg-gray-200 dark:active:bg-[#48484a]
+                         text-xs font-bold text-gray-700 dark:text-gray-200
+                         transition touch-manipulation select-none"
+              aria-label="Toggle language"
+            >
+              {lang === "en" ? "हिं" : "EN"}
+            </button>
+
             {/* Dark mode toggle */}
             <button
               onClick={toggle}
