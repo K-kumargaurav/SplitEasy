@@ -938,13 +938,33 @@ export default function GroupDetail() {
                 {expenses.map((expense) => (
                   <div key={expense._id} className="px-4 py-3.5">
                     {/* Header row */}
+                    {(() => {
+                      const isMyExpense = expense.paidBy._id === user?._id;
+                      const mySplit = !isMyExpense
+                        ? expense.splitBetween.find(
+                            (s) => (s.user._id || s.user) === user?._id
+                          )
+                        : null;
+                      const mySharePaid = mySplit?.paid === true;
+                      return (
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-start gap-2 flex-1 min-w-0 mr-3">
                         <span className="text-xl shrink-0 mt-0.5">{catIcon(expense.category)}</span>
                         <div className="min-w-0">
-                          <p className="text-base font-medium text-gray-900 dark:text-white truncate">
-                            {expense.description}
-                          </p>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="text-base font-medium text-gray-900 dark:text-white truncate">
+                              {expense.description}
+                            </p>
+                            {mySharePaid && (
+                              <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5
+                                               bg-emerald-100 dark:bg-emerald-900/30
+                                               text-emerald-700 dark:text-emerald-400
+                                               rounded-full border border-emerald-200
+                                               dark:border-emerald-700/40 select-none">
+                                ✓ Paid
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-gray-400 mt-0.5">
                             {t("gd.paid_by")}{" "}
                             <span className="text-emerald-600 font-semibold">
@@ -1007,6 +1027,7 @@ export default function GroupDetail() {
                         )}
                       </div>
                     </div>
+                      ); })()}
 
                     {/* Split chips */}
                     <div className="flex flex-wrap gap-1.5 mb-2">
