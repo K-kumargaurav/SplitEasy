@@ -34,7 +34,7 @@ const formatUser = (user) => ({
 /* ── Validation rules ── */
 const registerValidation = [
   body("name").trim().notEmpty().withMessage("Name is required").isLength({ max: 60 }),
-  body("email").trim().isEmail().withMessage("Valid email is required").normalizeEmail(),
+  body("email").trim().toLowerCase().isEmail().withMessage("Valid email is required"),
   body("password")
     .isLength({ min: 8 }).withMessage("Password must be at least 8 characters")
     .matches(/[A-Z]/).withMessage("Password must contain an uppercase letter")
@@ -42,7 +42,7 @@ const registerValidation = [
 ];
 
 const loginValidation = [
-  body("email").trim().isEmail().normalizeEmail(),
+  body("email").trim().toLowerCase().isEmail(),
   body("password").notEmpty(),
 ];
 
@@ -53,7 +53,8 @@ const register = async (req, res) => {
     return res.status(400).json({ message: errors.array()[0].msg });
 
   try {
-    const { name, email, password, country } = req.body;
+    const { name, password, country } = req.body;
+    const email = req.body.email.toLowerCase().trim();
 
     const existingUser = await User.findOne({ email });
     if (existingUser)
@@ -90,7 +91,8 @@ const login = async (req, res) => {
     return res.status(400).json({ message: "Invalid email or password" });
 
   try {
-    const { email, password } = req.body;
+    const email = req.body.email.toLowerCase().trim();
+    const { password } = req.body;
 
     const user = await User.findOne({ email });
     // Generic message to prevent user enumeration
@@ -127,7 +129,8 @@ const googleAuth = async (req, res) => {
       audience: process.env.GOOGLE_CLIENT_ID,
     });
 
-    const { sub: googleId, email, name, picture } = ticket.getPayload();
+    const { sub: googleId, name, picture } = ticket.getPayload();
+    const email = ticket.getPayload().email.toLowerCase().trim();
 
     let user = await User.findOne({ $or: [{ googleId }, { email }] });
 
