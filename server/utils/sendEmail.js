@@ -11,12 +11,14 @@ const sendEmail = async ({ to, subject, html }) => {
     secure: false,
     auth: {
       user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
+      pass: process.env.EMAIL_PASS.replace(/\s/g, ""),
     },
   });
 
+  const from = process.env.EMAIL_FROM || process.env.EMAIL_USER;
+
   await transporter.sendMail({
-    from: `"SplitEasy" <${process.env.EMAIL_USER}>`,
+    from: `"SplitEasy" <${from}>`,
     to,
     subject,
     html,
