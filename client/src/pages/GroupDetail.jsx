@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
@@ -7,10 +7,40 @@ import MemberSearch from "../components/MemberSearch";
 import toast from "react-hot-toast";
 
 /* ─────────────────────────────────────────
+   Constants
+───────────────────────────────────────── */
+
+const CATEGORIES = [
+  { value: "food",          label: "Food",        icon: "🍔" },
+  { value: "transport",     label: "Transport",   icon: "🚗" },
+  { value: "accommodation", label: "Stay",        icon: "🏠" },
+  { value: "entertainment", label: "Fun",         icon: "🎬" },
+  { value: "shopping",      label: "Shopping",    icon: "🛍️" },
+  { value: "utilities",     label: "Utilities",   icon: "💡" },
+  { value: "travel",        label: "Travel",      icon: "✈️" },
+  { value: "other",         label: "Other",       icon: "📦" },
+];
+
+const catIcon  = (v) => CATEGORIES.find((c) => c.value === v)?.icon  ?? "📦";
+const catLabel = (v) => CATEGORIES.find((c) => c.value === v)?.label ?? "Other";
+
+const COUNTRY_FLAGS = {
+  "India":"🇮🇳","United States":"🇺🇸","United Kingdom":"🇬🇧","Canada":"🇨🇦",
+  "Australia":"🇦🇺","Germany":"🇩🇪","France":"🇫🇷","Japan":"🇯🇵","China":"🇨🇳",
+  "Brazil":"🇧🇷","Russia":"🇷🇺","South Korea":"🇰🇷","Italy":"🇮🇹","Spain":"🇪🇸",
+  "Mexico":"🇲🇽","Indonesia":"🇮🇩","Netherlands":"🇳🇱","Saudi Arabia":"🇸🇦",
+  "Turkey":"🇹🇷","Switzerland":"🇨🇭","Argentina":"🇦🇷","Sweden":"🇸🇪","Poland":"🇵🇱",
+  "Belgium":"🇧🇪","Thailand":"🇹🇭","Nigeria":"🇳🇬","UAE":"🇦🇪","Singapore":"🇸🇬",
+  "Malaysia":"🇲🇾","Pakistan":"🇵🇰","Bangladesh":"🇧🇩","Vietnam":"🇻🇳",
+  "Philippines":"🇵🇭","Egypt":"🇪🇬","Iran":"🇮🇷","Iraq":"🇮🇶",
+  "South Africa":"🇿🇦","Colombia":"🇨🇴","Ukraine":"🇺🇦","Romania":"🇷🇴",
+  "New Zealand":"🇳🇿","Nepal":"🇳🇵","Sri Lanka":"🇱🇰","Other":"🌍",
+};
+
+/* ─────────────────────────────────────────
    Local UI components
 ───────────────────────────────────────── */
 
-/** Initials avatar with color derived from name */
 function Avatar({ name = "?", size = 36 }) {
   const COLORS = [
     "bg-emerald-500", "bg-violet-500", "bg-orange-500",
@@ -30,7 +60,6 @@ function Avatar({ name = "?", size = 36 }) {
   );
 }
 
-/** Section label */
 function SectionLabel({ children }) {
   return (
     <p className="px-1 mb-1 text-xs font-semibold text-gray-500 dark:text-gray-400
@@ -40,7 +69,6 @@ function SectionLabel({ children }) {
   );
 }
 
-/** Grouped white card with optional divided children */
 function ListGroup({ children }) {
   return (
     <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl overflow-hidden
@@ -103,37 +131,28 @@ function Dialog({ open, onClose, title, children }) {
    GroupDetail Page
 ───────────────────────────────────────── */
 
-const COUNTRY_FLAGS = {
-  "India":"🇮🇳","United States":"🇺🇸","United Kingdom":"🇬🇧","Canada":"🇨🇦",
-  "Australia":"🇦🇺","Germany":"🇩🇪","France":"🇫🇷","Japan":"🇯🇵","China":"🇨🇳",
-  "Brazil":"🇧🇷","Russia":"🇷🇺","South Korea":"🇰🇷","Italy":"🇮🇹","Spain":"🇪🇸",
-  "Mexico":"🇲🇽","Indonesia":"🇮🇩","Netherlands":"🇳🇱","Saudi Arabia":"🇸🇦",
-  "Turkey":"🇹🇷","Switzerland":"🇨🇭","Argentina":"🇦🇷","Sweden":"🇸🇪","Poland":"🇵🇱",
-  "Belgium":"🇧🇪","Thailand":"🇹🇭","Nigeria":"🇳🇬","UAE":"🇦🇪","Singapore":"🇸🇬",
-  "Malaysia":"🇲🇾","Pakistan":"🇵🇰","Bangladesh":"🇧🇩","Vietnam":"🇻🇳",
-  "Philippines":"🇵🇭","Egypt":"🇪🇬","Iran":"🇮🇷","Iraq":"🇮🇶",
-  "South Africa":"🇿🇦","Colombia":"🇨🇴","Ukraine":"🇺🇦","Romania":"🇷🇴",
-  "New Zealand":"🇳🇿","Nepal":"🇳🇵","Sri Lanka":"🇱🇰","Other":"🌍",
-};
-
 export default function GroupDetail() {
   const { id }                          = useParams();
   const { user, loading: authLoading }  = useAuth();
   const { dark, toggle }                = useTheme();
   const navigate                        = useNavigate();
+  const groupPhotoRef                   = useRef(null);
 
   /* ── Data ── */
-  const [group,              setGroup]              = useState(null);
-  const [expenses,           setExpenses]           = useState([]);
-  const [balances,           setBalances]           = useState([]);
-  const [myPendingSettlements, setMyPendingSettlements] = useState([]); // settlements I sent, still pending
+  const [group,                setGroup]                = useState(null);
+  const [expenses,             setExpenses]             = useState([]);
+  const [balances,             setBalances]             = useState([]);
+  const [settlements,          setSettlements]          = useState([]);
+  const [myPendingSettlements, setMyPendingSettlements] = useState([]);
 
   /* ── UI state ── */
-  const [loading,       setLoading]       = useState(true);
-  const [activeTab,     setActiveTab]     = useState("expenses");
-  const [error,         setError]         = useState("");
-  const [inviteSuccess, setInviteSuccess] = useState("");
-  const [showAddMember, setShowAddMember] = useState(false);
+  const [loading,         setLoading]         = useState(true);
+  const [activeTab,       setActiveTab]       = useState("expenses");
+  const [error,           setError]           = useState("");
+  const [inviteSuccess,   setInviteSuccess]   = useState("");
+  const [showAddMember,   setShowAddMember]   = useState(false);
+  const [showBreakdown,   setShowBreakdown]   = useState(false);
+  const [groupPhotoSaving, setGroupPhotoSaving] = useState(false);
 
   /* ── Add expense form ── */
   const [showExpenseForm, setShowExpenseForm] = useState(false);
@@ -141,27 +160,22 @@ export default function GroupDetail() {
     description: "",
     amount:      "",
     splitType:   "equal",
-    paidById:    "", // empty = current user
+    paidById:    "",
+    category:    "other",
   });
   const [customSplits, setCustomSplits] = useState([]);
 
   /* ── Settle modal ── */
-  const [settleModal,  setSettleModal]  = useState(null); // { owedTo, maxAmount }
+  const [settleModal,  setSettleModal]  = useState(null);
   const [settleAmount, setSettleAmount] = useState("");
 
   /* ── Member profile sheet ── */
-  const [memberProfile, setMemberProfile] = useState(null); // { loading, data, memberId }
+  const [memberProfile, setMemberProfile] = useState(null);
 
-  const openMemberProfile = async (member) => {
-    if (member._id === user?._id) return; // own profile — skip
-    setMemberProfile({ loading: true, data: null, memberId: member._id, name: member.name });
-    try {
-      const { data } = await api.get(`/users/${member._id}`);
-      setMemberProfile((p) => ({ ...p, loading: false, data }));
-    } catch {
-      setMemberProfile((p) => ({ ...p, loading: false }));
-    }
-  };
+  /* ── Comments ── */
+  const [showCommentFor,  setShowCommentFor]  = useState(null); // expenseId
+  const [commentInputs,   setCommentInputs]   = useState({});   // { expenseId: text }
+  const [commentLoading,  setCommentLoading]  = useState(null); // expenseId being submitted
 
   /* ─── Auth guard ─── */
   useEffect(() => {
@@ -185,15 +199,16 @@ export default function GroupDetail() {
       if (expensesRes.status    === "fulfilled") setExpenses(expensesRes.value.data);
       if (balancesRes.status    === "fulfilled") setBalances(balancesRes.value.data);
       if (settlementsRes.status === "fulfilled") {
-        const pending = settlementsRes.value.data.filter(
+        const all = settlementsRes.value.data;
+        setSettlements(all);
+        const pending = all.filter(
           (s) => s.status === "pending" && s.paidBy._id === user?._id
         );
         setMyPendingSettlements(pending);
       }
 
-      if (groupRes.status    === "rejected")  setError("Failed to load group");
-      if (expensesRes.status === "rejected")  setError("Failed to load expenses");
-      if (balancesRes.status === "rejected")  setError("Failed to load balances");
+      if (groupRes.status    === "rejected") setError("Failed to load group");
+      if (expensesRes.status === "rejected") setError("Failed to load expenses");
     } catch {
       setError("Failed to load data");
     } finally {
@@ -203,9 +218,61 @@ export default function GroupDetail() {
 
   /* ─────── Helpers ─────── */
 
-  /** Returns display name for a user ID using the loaded member list */
   const getMemberName = (userId) =>
     group?.members.find((m) => m._id.toString() === userId.toString())?.name ?? userId;
+
+  const formatDate = (ts) =>
+    new Date(ts).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+
+  /* ─────── Export CSV ─────── */
+
+  const handleExportCSV = () => {
+    const rows = [
+      ["Date", "Description", "Category", "Amount (₹)", "Paid By", "Split Type"],
+      ...expenses.map((e) => [
+        formatDate(e.createdAt),
+        `"${e.description}"`,
+        catLabel(e.category),
+        e.amount.toFixed(2),
+        e.paidBy.name,
+        e.splitType,
+      ]),
+    ];
+    const csv  = rows.map((r) => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = `${group?.name || "expenses"}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  /* ─────── Group photo upload ─────── */
+
+  const handleGroupPhotoChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { toast.error("Image must be under 10 MB"); return; }
+    setGroupPhotoSaving(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
+      formData.append("folder", "spliteasy/groups");
+      const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+      const res = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+        { method: "POST", body: formData }
+      );
+      if (!res.ok) throw new Error("Upload failed");
+      const { secure_url } = await res.json();
+      const { data } = await api.put(`/groups/${id}`, { groupPhoto: secure_url });
+      setGroup((g) => ({ ...g, groupPhoto: data.groupPhoto }));
+      toast.success("Group photo updated");
+    } catch { toast.error("Failed to update photo"); }
+    finally { setGroupPhotoSaving(false); }
+  };
 
   /* ─────── Action handlers ─────── */
 
@@ -237,16 +304,17 @@ export default function GroupDetail() {
 
     try {
       await api.post(`/groups/${id}/expenses`, {
-        description: newExpense.description,
-        amount:      amt,
-        splitType:   newExpense.splitType,
-        paidById:    newExpense.paidById || undefined,
+        description:  newExpense.description,
+        amount:       amt,
+        splitType:    newExpense.splitType,
+        paidById:     newExpense.paidById || undefined,
+        category:     newExpense.category,
         customSplits:
           newExpense.splitType === "custom"
             ? customSplits.map((s) => ({ userId: s.userId, share: parseFloat(s.share) }))
             : undefined,
       });
-      setNewExpense({ description: "", amount: "", splitType: "equal", paidById: "" });
+      setNewExpense({ description: "", amount: "", splitType: "equal", paidById: "", category: "other" });
       setCustomSplits([]);
       setShowExpenseForm(false);
       fetchAll();
@@ -281,7 +349,6 @@ export default function GroupDetail() {
     }
   };
 
-  /* ─────── Split-type toggle handler ─────── */
   const handleSplitTypeChange = (type) => {
     setNewExpense((prev) => ({ ...prev, splitType: type }));
     if (type === "custom") {
@@ -293,17 +360,76 @@ export default function GroupDetail() {
     }
   };
 
-  /* ─────── Derived balance buckets ─────── */
+  const handleAddComment = async (expenseId) => {
+    const text = (commentInputs[expenseId] || "").trim();
+    if (!text) return;
+    setCommentLoading(expenseId);
+    try {
+      const { data } = await api.post(`/groups/${id}/expenses/${expenseId}/comments`, { text });
+      setExpenses((prev) =>
+        prev.map((e) => (e._id === expenseId ? { ...e, comments: data.comments } : e))
+      );
+      setCommentInputs((prev) => ({ ...prev, [expenseId]: "" }));
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to add comment");
+    } finally {
+      setCommentLoading(null);
+    }
+  };
+
+  const openMemberProfile = async (member) => {
+    if (member._id === user?._id) return;
+    setMemberProfile({ loading: true, data: null, memberId: member._id, name: member.name });
+    try {
+      const { data } = await api.get(`/users/${member._id}`);
+      setMemberProfile((p) => ({ ...p, loading: false, data }));
+    } catch {
+      setMemberProfile((p) => ({ ...p, loading: false }));
+    }
+  };
+
+  /* ─────── Derived ─────── */
+
   const myDebts    = balances.filter((b) => b.owedBy === user?._id);
   const theyOweMe  = balances.filter((b) => b.owedTo === user?._id);
   const otherDebts = balances.filter(
     (b) => b.owedBy !== user?._id && b.owedTo !== user?._id
   );
 
-  /* ─────── Custom split total (for live validation UI) ─────── */
   const customTotal = customSplits.reduce((s, c) => s + (parseFloat(c.share) || 0), 0);
   const targetAmt   = parseFloat(newExpense.amount || 0);
   const splitsMatch = Math.abs(customTotal - targetAmt) < 0.01;
+
+  /* ── Spending breakdown by category ── */
+  const breakdown = CATEGORIES.map((cat) => {
+    const total = expenses
+      .filter((e) => (e.category || "other") === cat.value)
+      .reduce((s, e) => s + e.amount, 0);
+    return { ...cat, total };
+  }).filter((c) => c.total > 0);
+  const breakdownMax = Math.max(...breakdown.map((c) => c.total), 1);
+
+  /* ── Activity timeline: merge expenses + settlements ── */
+  const activityItems = [
+    ...expenses.map((e) => ({
+      type:    "expense",
+      date:    new Date(e.createdAt),
+      icon:    catIcon(e.category),
+      title:   e.description,
+      subtitle: `Paid by ${e.paidBy.name}`,
+      amount:  `₹${e.amount.toFixed(2)}`,
+      amountColor: "text-gray-900 dark:text-white",
+    })),
+    ...settlements.map((s) => ({
+      type:    "settlement",
+      date:    new Date(s.createdAt),
+      icon:    s.status === "accepted" ? "✅" : s.status === "rejected" ? "❌" : "⏳",
+      title:   `${s.paidBy.name} → ${s.paidTo.name}`,
+      subtitle: s.status === "accepted" ? "Settled" : s.status === "rejected" ? "Rejected" : "Pending",
+      amount:  `₹${(s.amount / 100).toFixed(2)}`,
+      amountColor: s.status === "accepted" ? "text-emerald-600" : "text-gray-400",
+    })),
+  ].sort((a, b) => b.date - a.date);
 
   /* ─────────────────────────────────────────
      Loading state
@@ -329,7 +455,7 @@ export default function GroupDetail() {
                          backdrop-blur border-b border-gray-200/60
                          dark:border-[#3a3a3c]/60 shadow-sm">
         <div className="max-w-lg mx-auto h-14 px-4 flex items-center gap-3">
-          {/* Back button */}
+          {/* Back */}
           <button
             onClick={() => navigate("/dashboard")}
             className="w-10 h-10 flex items-center justify-center rounded-full
@@ -342,14 +468,43 @@ export default function GroupDetail() {
             </svg>
           </button>
 
-          {/* Title */}
-          <div className="flex-1 min-w-0">
-            <h1 className="text-base font-semibold text-gray-900 dark:text-white truncate">
-              {group?.name}
-            </h1>
-            {group?.description && (
-              <p className="text-xs text-gray-400 truncate">{group.description}</p>
-            )}
+          {/* Group photo + title */}
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <button
+              onClick={() => groupPhotoRef.current?.click()}
+              disabled={groupPhotoSaving}
+              className="relative shrink-0 w-8 h-8 rounded-full overflow-hidden
+                         active:opacity-70 transition touch-manipulation"
+              title="Change group photo"
+            >
+              {group?.groupPhoto ? (
+                <img src={group.groupPhoto} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-emerald-100 flex items-center justify-center text-base">
+                  👥
+                </div>
+              )}
+              {groupPhotoSaving && (
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                  <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+            </button>
+            <input
+              ref={groupPhotoRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleGroupPhotoChange}
+            />
+            <div className="flex-1 min-w-0">
+              <h1 className="text-base font-semibold text-gray-900 dark:text-white truncate">
+                {group?.name}
+              </h1>
+              {group?.description && (
+                <p className="text-xs text-gray-400 truncate">{group.description}</p>
+              )}
+            </div>
           </div>
 
           {/* Dark mode toggle */}
@@ -359,7 +514,6 @@ export default function GroupDetail() {
                        hover:bg-gray-100 dark:hover:bg-[#3a3a3c]
                        active:bg-gray-200 dark:active:bg-[#48484a]
                        transition touch-manipulation shrink-0"
-            aria-label="Toggle dark mode"
           >
             {dark ? (
               <svg className="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 24 24">
@@ -387,7 +541,7 @@ export default function GroupDetail() {
             )}
           </button>
 
-          {/* Member count pill */}
+          {/* Member count */}
           <span className="text-xs text-gray-500 dark:text-gray-400
                            bg-gray-100 dark:bg-[#3a3a3c] px-2.5 py-1
                            rounded-full shrink-0 select-none">
@@ -399,7 +553,6 @@ export default function GroupDetail() {
       {/* ── Scrollable content ── */}
       <main className="max-w-lg mx-auto px-4 py-4 pb-32 space-y-4">
 
-        {/* Error banner */}
         {error && (
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200
                           dark:border-red-800/30 rounded-xl px-4 py-3
@@ -417,13 +570,11 @@ export default function GroupDetail() {
             </p>
             <button
               onClick={() => setShowAddMember((v) => !v)}
-              className="text-sm text-emerald-600 font-semibold
-                         touch-manipulation select-none"
+              className="text-sm text-emerald-600 font-semibold touch-manipulation select-none"
             >
               + Invite
             </button>
           </div>
-
           <div className="flex flex-wrap gap-2">
             {group?.members.map((member) => (
               <button
@@ -444,21 +595,16 @@ export default function GroupDetail() {
                 </span>
                 {member._id === user?._id && (
                   <span className="text-[10px] bg-emerald-600 text-white
-                                   px-1.5 py-0.5 rounded-full font-semibold
-                                   select-none">
+                                   px-1.5 py-0.5 rounded-full font-semibold select-none">
                     YOU
                   </span>
                 )}
               </button>
             ))}
           </div>
-
           {inviteSuccess && (
-            <p className="text-emerald-600 text-sm mt-3 font-medium">
-              {inviteSuccess}
-            </p>
+            <p className="text-emerald-600 text-sm mt-3 font-medium">{inviteSuccess}</p>
           )}
-
           {showAddMember && (
             <div className="mt-3 pt-3 border-t border-gray-100">
               <MemberSearch onAdd={handleSendInvite} existingMembers={group?.members} />
@@ -468,7 +614,7 @@ export default function GroupDetail() {
 
         {/* ── Tab switcher ── */}
         <div className="flex bg-gray-200 dark:bg-[#3a3a3c] rounded-2xl p-1">
-          {["expenses", "balances"].map((tab) => (
+          {["expenses", "balances", "activity"].map((tab) => (
             <button
               key={tab}
               onClick={() => { setActiveTab(tab); setError(""); }}
@@ -486,32 +632,86 @@ export default function GroupDetail() {
         {/* ════════════════ EXPENSES TAB ════════════════ */}
         {activeTab === "expenses" && (
           <>
+            {/* Toolbar: breakdown toggle + export */}
+            {expenses.length > 0 && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowBreakdown((v) => !v)}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium
+                              transition touch-manipulation select-none
+                              ${showBreakdown
+                                ? "bg-emerald-500 text-white"
+                                : "bg-white dark:bg-[#2c2c2e] text-gray-600 dark:text-gray-300 shadow-sm"}`}
+                >
+                  📊 Breakdown
+                </button>
+                <button
+                  onClick={handleExportCSV}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium
+                             bg-white dark:bg-[#2c2c2e] text-gray-600 dark:text-gray-300
+                             shadow-sm transition touch-manipulation select-none"
+                >
+                  ⬇ Export CSV
+                </button>
+              </div>
+            )}
+
+            {/* Spending Breakdown */}
+            {showBreakdown && breakdown.length > 0 && (
+              <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm p-4 space-y-2.5">
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+                  Spending Breakdown
+                </p>
+                {breakdown.map((cat) => (
+                  <div key={cat.value}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm text-gray-700 dark:text-gray-200">
+                        {cat.icon} {cat.label}
+                      </span>
+                      <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                        ₹{cat.total.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="h-2 bg-gray-100 dark:bg-[#3a3a3c] rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-emerald-500 rounded-full transition-all"
+                        style={{ width: `${(cat.total / breakdownMax) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {expenses.length === 0 ? (
               <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm py-16 text-center">
                 <p className="text-4xl mb-3">🧾</p>
                 <p className="text-gray-700 dark:text-gray-200 font-semibold">No expenses yet</p>
-                <p className="text-gray-400 text-sm mt-1">
-                  Add the first one to start tracking
-                </p>
+                <p className="text-gray-400 text-sm mt-1">Add the first one to start tracking</p>
               </div>
             ) : (
               <ListGroup>
                 {expenses.map((expense) => (
                   <div key={expense._id} className="px-4 py-3.5">
-                    {/* Expense header */}
+                    {/* Header row */}
                     <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1 min-w-0 mr-3">
-                        <p className="text-base font-medium text-gray-900 dark:text-white truncate">
-                          {expense.description}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          Paid by{" "}
-                          <span className="text-emerald-600 font-semibold">
-                            {expense.paidBy.name}
-                          </span>
-                        </p>
+                      <div className="flex items-start gap-2 flex-1 min-w-0 mr-3">
+                        <span className="text-xl shrink-0 mt-0.5">{catIcon(expense.category)}</span>
+                        <div className="min-w-0">
+                          <p className="text-base font-medium text-gray-900 dark:text-white truncate">
+                            {expense.description}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            Paid by{" "}
+                            <span className="text-emerald-600 font-semibold">
+                              {expense.paidBy.name}
+                            </span>
+                            {" · "}
+                            <span className="text-gray-400">{formatDate(expense.createdAt)}</span>
+                          </p>
+                        </div>
                       </div>
-                          <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-2 shrink-0">
                         <span className="text-base font-bold text-gray-900 dark:text-white">
                           ₹{expense.amount.toFixed(2)}
                         </span>
@@ -529,8 +729,7 @@ export default function GroupDetail() {
                             }}
                             className="w-7 h-7 flex items-center justify-center rounded-full
                                        bg-red-50 dark:bg-red-900/20 text-red-500
-                                       active:bg-red-100 dark:active:bg-red-900/40 transition
-                                       touch-manipulation"
+                                       active:bg-red-100 transition touch-manipulation"
                             title="Delete expense"
                           >
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -544,21 +743,78 @@ export default function GroupDetail() {
                       </div>
                     </div>
 
-                    {/* Per-person split chips */}
-                    <div className="flex flex-wrap gap-1.5">
+                    {/* Split chips */}
+                    <div className="flex flex-wrap gap-1.5 mb-2">
                       {expense.splitBetween.map((split) => (
                         <span
                           key={split._id}
                           className={`text-xs px-2.5 py-1 rounded-full font-medium
                             ${split.paid
                               ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                              : "bg-red-50   text-red-600   border border-red-200"}`}
+                              : "bg-red-50 text-red-600 border border-red-200"}`}
                         >
-                          {split.paid ? "✓" : "✗"}{" "}
-                          {split.user.name}: ₹{split.share.toFixed(2)}
+                          {split.paid ? "✓" : "✗"} {split.user.name}: ₹{split.share.toFixed(2)}
                         </span>
                       ))}
                     </div>
+
+                    {/* Comments toggle */}
+                    <button
+                      onClick={() =>
+                        setShowCommentFor((prev) => (prev === expense._id ? null : expense._id))
+                      }
+                      className="text-xs text-gray-400 hover:text-emerald-600 transition
+                                 touch-manipulation select-none"
+                    >
+                      💬 {expense.comments?.length || 0} note{expense.comments?.length !== 1 ? "s" : ""}
+                    </button>
+
+                    {/* Comments section */}
+                    {showCommentFor === expense._id && (
+                      <div className="mt-2 space-y-2">
+                        {(expense.comments || []).map((c, i) => (
+                          <div key={i} className="flex gap-2 items-start">
+                            <div className="w-6 h-6 rounded-full bg-emerald-500 flex items-center
+                                            justify-center text-white text-[10px] font-bold shrink-0">
+                              {(c.user?.name || "?")[0].toUpperCase()}
+                            </div>
+                            <div className="flex-1 bg-gray-50 dark:bg-[#3a3a3c] rounded-xl px-3 py-2">
+                              <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">
+                                {c.user?.name || "Unknown"}
+                              </span>
+                              <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">{c.text}</p>
+                            </div>
+                          </div>
+                        ))}
+                        <div className="flex gap-2 mt-1">
+                          <input
+                            type="text"
+                            placeholder="Add a note…"
+                            value={commentInputs[expense._id] || ""}
+                            onChange={(e) =>
+                              setCommentInputs((prev) => ({ ...prev, [expense._id]: e.target.value }))
+                            }
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") handleAddComment(expense._id);
+                            }}
+                            maxLength={300}
+                            className="flex-1 h-9 bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
+                                       dark:border-[#48484a] rounded-xl px-3 text-sm
+                                       text-gray-900 dark:text-white placeholder-gray-400
+                                       focus:outline-none focus:border-emerald-500 transition"
+                          />
+                          <button
+                            onClick={() => handleAddComment(expense._id)}
+                            disabled={commentLoading === expense._id}
+                            className="h-9 px-3 bg-emerald-500 active:bg-emerald-600 text-white
+                                       text-sm font-semibold rounded-xl transition
+                                       touch-manipulation disabled:opacity-50"
+                          >
+                            {commentLoading === expense._id ? "…" : "Post"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </ListGroup>
@@ -578,7 +834,6 @@ export default function GroupDetail() {
             ) : (
               <div className="space-y-4">
 
-                {/* You owe */}
                 {myDebts.length > 0 && (
                   <div>
                     <SectionLabel>You Owe</SectionLabel>
@@ -610,7 +865,7 @@ export default function GroupDetail() {
                                 className={`w-full h-10 text-sm font-semibold rounded-xl
                                             transition touch-manipulation select-none
                                             ${alreadyPending
-                                              ? "bg-gray-100 dark:bg-[#3a3a3c] text-gray-400 dark:text-gray-500 cursor-not-allowed"
+                                              ? "bg-gray-100 dark:bg-[#3a3a3c] text-gray-400 cursor-not-allowed"
                                               : "bg-emerald-500 active:bg-emerald-600 text-white"}`}
                               >
                                 {alreadyPending ? "⏳ Request Pending" : "Settle Up"}
@@ -623,7 +878,6 @@ export default function GroupDetail() {
                   </div>
                 )}
 
-                {/* Owed to you */}
                 {theyOweMe.length > 0 && (
                   <div>
                     <SectionLabel>Owed to You</SectionLabel>
@@ -648,7 +902,6 @@ export default function GroupDetail() {
                   </div>
                 )}
 
-                {/* Other members' debts */}
                 {otherDebts.length > 0 && (
                   <div>
                     <SectionLabel>Others</SectionLabel>
@@ -672,13 +925,50 @@ export default function GroupDetail() {
                     </ListGroup>
                   </div>
                 )}
+
               </div>
             )}
           </>
         )}
+
+        {/* ════════════════ ACTIVITY TAB ════════════════ */}
+        {activeTab === "activity" && (
+          <>
+            {activityItems.length === 0 ? (
+              <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm py-16 text-center">
+                <p className="text-4xl mb-3">📭</p>
+                <p className="text-gray-700 dark:text-gray-200 font-semibold">No activity yet</p>
+                <p className="text-gray-400 text-sm mt-1">Expenses and settlements will appear here</p>
+              </div>
+            ) : (
+              <ListGroup>
+                {activityItems.map((item, i) => (
+                  <div key={i} className="flex items-center gap-3 px-4 py-3.5">
+                    <span className="text-2xl shrink-0">{item.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {item.title}
+                      </p>
+                      <p className="text-xs text-gray-400">{item.subtitle}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {item.date.toLocaleDateString("en-IN", {
+                          day: "numeric", month: "short", year: "numeric",
+                        })}
+                      </p>
+                    </div>
+                    <span className={`text-sm font-bold shrink-0 ${item.amountColor}`}>
+                      {item.amount}
+                    </span>
+                  </div>
+                ))}
+              </ListGroup>
+            )}
+          </>
+        )}
+
       </main>
 
-      {/* ── Add Expense FAB (expenses tab only) ── */}
+      {/* ── Add Expense FAB ── */}
       {activeTab === "expenses" && (
         <div className="fixed bottom-0 inset-x-0 bg-white/80 dark:bg-[#1c1c1e]/80
                         backdrop-blur border-t border-gray-200/60 dark:border-[#3a3a3c]/60
@@ -700,7 +990,7 @@ export default function GroupDetail() {
         onClose={() => {
           setShowExpenseForm(false);
           setCustomSplits([]);
-          setNewExpense({ description: "", amount: "", splitType: "equal", paidById: "" });
+          setNewExpense({ description: "", amount: "", splitType: "equal", paidById: "", category: "other" });
           setError("");
         }}
         title="Add Expense"
@@ -727,7 +1017,6 @@ export default function GroupDetail() {
               className="w-full h-12 bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
                          dark:border-[#48484a] rounded-xl px-4 text-base
                          text-gray-900 dark:text-white placeholder-gray-400
-                         dark:placeholder-gray-500
                          focus:outline-none focus:border-emerald-500
                          focus:ring-2 focus:ring-emerald-500/20 transition"
               required
@@ -751,11 +1040,34 @@ export default function GroupDetail() {
               className="w-full h-12 bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
                          dark:border-[#48484a] rounded-xl px-4 text-base
                          text-gray-900 dark:text-white placeholder-gray-400
-                         dark:placeholder-gray-500
                          focus:outline-none focus:border-emerald-500
                          focus:ring-2 focus:ring-emerald-500/20 transition"
               required
             />
+          </div>
+
+          {/* Category */}
+          <div>
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+              Category
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {CATEGORIES.map((cat) => (
+                <button
+                  key={cat.value}
+                  type="button"
+                  onClick={() => setNewExpense((p) => ({ ...p, category: cat.value }))}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm
+                              font-medium transition touch-manipulation select-none
+                              ${newExpense.category === cat.value
+                                ? "bg-emerald-500 text-white"
+                                : "bg-gray-100 dark:bg-[#3a3a3c] text-gray-600 dark:text-gray-300"}`}
+                >
+                  <span>{cat.icon}</span>
+                  {cat.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Paid by */}
@@ -791,7 +1103,7 @@ export default function GroupDetail() {
             </div>
           </div>
 
-          {/* Split type toggle */}
+          {/* Split type */}
           <div>
             <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
               Split Type
@@ -814,7 +1126,7 @@ export default function GroupDetail() {
             </div>
           </div>
 
-          {/* Custom split inputs */}
+          {/* Custom splits */}
           {newExpense.splitType === "custom" && (
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-2">
@@ -846,8 +1158,6 @@ export default function GroupDetail() {
                   </div>
                 ))}
               </div>
-
-              {/* Live total indicator */}
               <div className="mt-2 flex justify-between text-sm">
                 <span className="text-gray-400">Total</span>
                 <span className={`font-semibold ${splitsMatch ? "text-emerald-600" : "text-red-500"}`}>
@@ -872,7 +1182,7 @@ export default function GroupDetail() {
               onClick={() => {
                 setShowExpenseForm(false);
                 setCustomSplits([]);
-                setNewExpense({ description: "", amount: "", splitType: "equal", paidById: "" });
+                setNewExpense({ description: "", amount: "", splitType: "equal", paidById: "", category: "other" });
                 setError("");
               }}
               className="flex-1 h-12 bg-gray-100 dark:bg-[#3a3a3c]
@@ -917,7 +1227,6 @@ export default function GroupDetail() {
 
             return (
               <div className="flex flex-col items-center gap-4">
-                {/* Avatar */}
                 <div className="relative">
                   {d.profilePublic && d.profilePhoto ? (
                     <img src={d.profilePhoto} alt={d.name}
@@ -937,8 +1246,6 @@ export default function GroupDetail() {
                     </span>
                   )}
                 </div>
-
-                {/* Name & username */}
                 <div className="text-center">
                   <p className="text-xl font-bold text-gray-900 dark:text-white">{d.name}</p>
                   {d.profilePublic && d.username && (
@@ -948,15 +1255,12 @@ export default function GroupDetail() {
                     {d.isOnline ? "🟢 Online" : d.lastSeen ? `Last seen ${formatLastSeen(d.lastSeen)}` : "Offline"}
                   </p>
                 </div>
-
-                {/* Bio */}
                 {d.profilePublic && d.bio && (
                   <div className="w-full bg-gray-50 dark:bg-[#3a3a3c] rounded-xl px-4 py-3">
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Bio</p>
                     <p className="text-sm text-gray-700 dark:text-gray-300">{d.bio}</p>
                   </div>
                 )}
-
                 {!d.profilePublic && (
                   <p className="text-sm text-gray-400 text-center">
                     🔒 This member's profile is private
@@ -982,7 +1286,6 @@ export default function GroupDetail() {
             ₹{settleModal?.maxAmount.toFixed(2)}
           </span>
         </p>
-
         <input
           type="number"
           inputMode="decimal"
@@ -993,14 +1296,12 @@ export default function GroupDetail() {
           onChange={(e) => setSettleAmount(e.target.value)}
           className="w-full h-12 bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
                      dark:border-[#48484a] rounded-xl px-4 text-base
-                     text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500
+                     text-gray-900 dark:text-white placeholder-gray-400
                      focus:outline-none focus:border-emerald-500
                      focus:ring-2 focus:ring-emerald-500/20 transition mb-3"
           placeholder="Enter amount"
         />
-
         {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
-
         <div className="flex gap-3">
           <button
             onClick={handleSettle}
@@ -1020,6 +1321,7 @@ export default function GroupDetail() {
           </button>
         </div>
       </Dialog>
+
     </div>
   );
 }

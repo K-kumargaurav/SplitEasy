@@ -49,20 +49,40 @@ const getBalances = async (req, res) => {
       }
     });
 
-    const result = [];
-
+    // Compute net balance per person, then simplify (minimize number of transactions)
+    const net = {};
     for (const debtor in balances) {
       for (const creditor in balances[debtor]) {
         const amount = balances[debtor][creditor];
-
-        if (amount > 0) {
-          result.push({
-            owedBy: debtor,
-            owedTo: creditor,
-            amount: amount / 100,
-          });
-        }
+        if (amount <= 0) continue;
+        net[debtor]   = (net[debtor]   || 0) - amount;
+        net[creditor] = (net[creditor] || 0) + amount;
       }
+    }
+
+    const creditors = Object.entries(net)
+      .filter(([, v]) => v >  0.5)
+      .map(([id, amt]) => ({ id, amt }))
+      .sort((a, b) => b.amt - a.amt);
+
+    const debtors = Object.entries(net)
+      .filter(([, v]) => v < -0.5)
+      .map(([id, amt]) => ({ id, amt: -amt }))
+      .sort((a, b) => b.amt - a.amt);
+
+    const result = [];
+    let i = 0, j = 0;
+    while (i < debtors.length && j < creditors.length) {
+      const transfer = Math.min(debtors[i].amt, creditors[j].amt);
+      result.push({
+        owedBy: debtors[i].id,
+        owedTo: creditors[j].id,
+        amount: transfer / 100,
+      });
+      debtors[i].amt   -= transfer;
+      creditors[j].amt -= transfer;
+      if (debtors[i].amt   < 0.5) i++;
+      if (creditors[j].amt < 0.5) j++;
     }
 
     res.json(result);

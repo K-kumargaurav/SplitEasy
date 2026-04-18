@@ -217,6 +217,19 @@ export default function Dashboard() {
 
   const notifRef = useRef(null);
 
+  /* ─── Request browser notification permission once ─── */
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  const sendBrowserNotif = (title, body) => {
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification(title, { body, icon: "/favicon.ico" });
+    }
+  };
+
   /* ─── Socket setup ─── */
   useEffect(() => {
     if (!user?._id) return;
@@ -225,6 +238,7 @@ export default function Dashboard() {
 
     const onSettlementRequest = (data) => {
       fetchPendingSettlements();
+      sendBrowserNotif("💰 Settlement Request", data.message);
       toast(() => (
         <span className="cursor-pointer" onClick={() => navigate(`/groups/${data.groupId}`)}>
           💰 {data.message}
@@ -235,11 +249,14 @@ export default function Dashboard() {
     const onSettlementUpdate = (data) => {
       fetchPendingSettlements();
       fetchDebts();
+      const msg = data.status === "accepted" ? "Settlement accepted!" : "Settlement rejected";
+      sendBrowserNotif("SplitEasy", msg);
       toast(data.status === "accepted" ? "✅ Settlement accepted!" : "❌ Settlement rejected");
     };
 
     const onNewInvite = () => {
       fetchInvites();
+      sendBrowserNotif("📩 New Invite", "You have a new group invite");
       toast("📩 New group invite received");
     };
 
@@ -636,8 +653,10 @@ export default function Dashboard() {
                            touch-manipulation select-none"
               >
                 <div className="w-11 h-11 rounded-full bg-emerald-100
-                                flex items-center justify-center text-xl shrink-0">
-                  👥
+                                flex items-center justify-center text-xl shrink-0 overflow-hidden">
+                  {group.groupPhoto
+                    ? <img src={group.groupPhoto} alt="" className="w-full h-full object-cover" />
+                    : "👥"}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-base font-medium text-gray-900 dark:text-white truncate">

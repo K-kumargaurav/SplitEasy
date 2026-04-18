@@ -39,7 +39,27 @@ const expenseSchema = new mongoose.Schema({
         type: String,
         enum: ["equal", "custom"],
         default: "equal"
-    }
+    },
+    category: {
+        type: String,
+        enum: ["food", "transport", "accommodation", "entertainment", "shopping", "utilities", "travel", "other"],
+        default: "other"
+    },
+    comments: [{
+        user: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+        },
+        text: {
+            type: String,
+            trim: true,
+            maxlength: 300
+        },
+        createdAt: {
+            type: Date,
+            default: Date.now
+        }
+    }]
 }, { timestamps: true });
 
 module.exports = mongoose.model("Expense", expenseSchema);

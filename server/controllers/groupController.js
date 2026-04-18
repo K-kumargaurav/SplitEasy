@@ -73,7 +73,7 @@ const getGroupById = async (req, res) => {
 // @POST /api/groups/:id/expenses
 const addExpense = async (req, res) => {
   try {
-    const { description, amount, splitType = "equal", customSplits, paidById } = req.body;
+    const { description, amount, splitType = "equal", customSplits, paidById, category = "other" } = req.body;
     const amountInPaise = Math.round(amount * 100);
     const group = await Group.findById(req.params.id);
 
@@ -121,10 +121,12 @@ const addExpense = async (req, res) => {
       paidBy: payer,
       splitBetween,
       splitType,
+      category,
     });
 
     await expense.populate("paidBy", "name email");
     await expense.populate("splitBetween.user", "name email");
+    await expense.populate("comments.user", "name");
 
     expense.amount = expense.amount / 100;
     expense.splitBetween.forEach((s) => {
@@ -156,6 +158,7 @@ const getGroupExpenses = async (req, res) => {
     const expenses = await Expense.find({ group: req.params.id })
       .populate("paidBy", "name email")
       .populate("splitBetween.user", "name email")
+      .populate("comments.user", "name")
       .lean();
 
     expenses.forEach((exp) => {
@@ -320,6 +323,54 @@ const getPendingInvites = async (req, res) => {
   }
 };
 
+// @POST /api/groups/:id/expenses/:expenseId/comments
+const addComment = async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text || !text.trim()) {
+      return res.status(400).json({ message: "Comment text is required" });
+    }
+
+    const expense = await Expense.findById(req.params.expenseId);
+    if (!expense) return res.status(404).json({ message: "Expense not found" });
+    if (expense.group.toString() !== req.params.id)
+      return res.status(400).json({ message: "Expense does not belong to this group" });
+
+    expense.comments.push({ user: req.user._id, text: text.trim() });
+    await expense.save();
+    await expense.populate("comments.user", "name");
+
+    res.status(201).json({ comments: expense.comments });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// @PUT /api/groups/:id
+const updateGroup = async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ message: "Group not found" });
+
+    if (!group.members.some((m) => m.toString() === req.user._id.toString())) {
+      return res.status(403).json({ message: "Not a member of this group" });
+    }
+
+    const { groupPhoto, name, description } = req.body;
+    if (groupPhoto !== undefined) group.groupPhoto = groupPhoto;
+    if (name !== undefined) group.name = name;
+    if (description !== undefined) group.description = description;
+
+    await group.save();
+    await group.populate("members", "name email");
+    await group.populate("createdBy", "name email");
+
+    res.json(group);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
 module.exports = {
   createGroup,
   getGroups,
@@ -330,4 +381,6 @@ module.exports = {
   sendInvite,
   respondToInvite,
   getPendingInvites,
+  addComment,
+  updateGroup,
 };
