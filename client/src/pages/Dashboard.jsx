@@ -997,10 +997,19 @@ export default function Dashboard() {
         {/* ── Stats ── */}
         <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm overflow-hidden
                         divide-y divide-gray-100 dark:divide-[#3a3a3c]">
-          <div className="flex items-center justify-between px-4 py-3.5">
+          <button
+            className="w-full flex items-center justify-between px-4 py-3.5
+                       active:bg-gray-50 dark:active:bg-[#3a3a3c] transition touch-manipulation"
+            onClick={() => setActiveView("groups")}
+          >
             <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">Groups joined</span>
-            <span className="text-sm font-bold text-gray-900 dark:text-white">{groups.length}</span>
-          </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm font-bold text-gray-900 dark:text-white">{groups.length}</span>
+              <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </button>
           <div className="flex items-center justify-between px-4 py-3.5">
             <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">Pending payments</span>
             <span className={`text-sm font-bold ${debts.length > 0 ? "text-red-500" : "text-emerald-600"}`}>
