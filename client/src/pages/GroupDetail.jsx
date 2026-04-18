@@ -511,9 +511,37 @@ export default function GroupDetail() {
                           </span>
                         </p>
                       </div>
-                      <span className="text-base font-bold text-gray-900 dark:text-white shrink-0">
-                        ₹{expense.amount.toFixed(2)}
-                      </span>
+                          <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-base font-bold text-gray-900 dark:text-white">
+                          ₹{expense.amount.toFixed(2)}
+                        </span>
+                        {expense.paidBy._id === user?._id && (
+                          <button
+                            onClick={async () => {
+                              if (!window.confirm("Delete this expense?")) return;
+                              try {
+                                await api.delete(`/groups/${id}/expenses/${expense._id}`);
+                                toast.success("Expense deleted");
+                                fetchAll();
+                              } catch (err) {
+                                toast.error(err.response?.data?.message || "Failed to delete");
+                              }
+                            }}
+                            className="w-7 h-7 flex items-center justify-center rounded-full
+                                       bg-red-50 dark:bg-red-900/20 text-red-500
+                                       active:bg-red-100 dark:active:bg-red-900/40 transition
+                                       touch-manipulation"
+                            title="Delete expense"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0
+                                       01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0
+                                       00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {/* Per-person split chips */}
@@ -568,7 +596,7 @@ export default function GroupDetail() {
                               </p>
                             </div>
                             <span className="text-base font-bold text-red-500">
-                              ₹{b.amount}
+                              ₹{b.amount.toFixed(2)}
                             </span>
                           </div>
                           {(() => {
@@ -612,7 +640,7 @@ export default function GroupDetail() {
                             </p>
                           </div>
                           <span className="text-base font-bold text-emerald-600">
-                            ₹{b.amount}
+                            ₹{b.amount.toFixed(2)}
                           </span>
                         </div>
                       ))}
@@ -637,7 +665,7 @@ export default function GroupDetail() {
                             </span>
                           </p>
                           <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                            ₹{b.amount}
+                            ₹{b.amount.toFixed(2)}
                           </span>
                         </div>
                       ))}
@@ -790,7 +818,7 @@ export default function GroupDetail() {
               <div className="mt-2 flex justify-between text-sm">
                 <span className="text-gray-400">Total</span>
                 <span className={`font-semibold ${splitsMatch ? "text-emerald-600" : "text-red-500"}`}>
-                  ₹{customTotal} / ₹{newExpense.amount || 0}
+                  ₹{customTotal.toFixed(2)} / ₹{parseFloat(newExpense.amount || 0).toFixed(2)}
                 </span>
               </div>
             </div>

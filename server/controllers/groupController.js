@@ -168,6 +168,22 @@ const getGroupExpenses = async (req, res) => {
   }
 };
 
+// @DELETE /api/groups/:groupId/expenses/:expenseId
+const deleteExpense = async (req, res) => {
+  try {
+    const expense = await Expense.findById(req.params.expenseId);
+    if (!expense) return res.status(404).json({ message: "Expense not found" });
+    if (expense.group.toString() !== req.params.id)
+      return res.status(400).json({ message: "Expense does not belong to this group" });
+    if (expense.paidBy.toString() !== req.user._id.toString())
+      return res.status(403).json({ message: "Only the payer can delete this expense" });
+    await expense.deleteOne();
+    res.json({ message: "Expense deleted" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
 // @POST /api/groups/:id/invite
 const sendInvite = async (req, res) => {
   try {
@@ -308,6 +324,7 @@ module.exports = {
   getGroupById,
   addExpense,
   getGroupExpenses,
+  deleteExpense,
   sendInvite,
   respondToInvite,
   getPendingInvites,
