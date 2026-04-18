@@ -29,7 +29,7 @@ const createGroup = async (req, res) => {
       group,
     });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -43,7 +43,7 @@ const getGroups = async (req, res) => {
 
     res.json(groups);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -68,7 +68,7 @@ const getGroupById = async (req, res) => {
 
     res.json(group);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -140,7 +140,7 @@ const addExpense = async (req, res) => {
       expense,
     });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -173,7 +173,7 @@ const getGroupExpenses = async (req, res) => {
 
     res.json(expenses);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -189,7 +189,7 @@ const deleteExpense = async (req, res) => {
     await expense.deleteOne();
     res.json({ message: "Expense deleted" });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -252,7 +252,7 @@ const sendInvite = async (req, res) => {
       res.json({ message: "Invite request sent to group creator for approval" });
     }
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -311,7 +311,7 @@ const respondToInvite = async (req, res) => {
           : "Invite rejected",
     });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -363,7 +363,7 @@ const approveInvite = async (req, res) => {
       res.json({ message: "Invite request declined" });
     }
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -387,7 +387,7 @@ const getPendingInvites = async (req, res) => {
 
     res.json(invites);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -427,7 +427,7 @@ const leaveGroup = async (req, res) => {
 
     res.json({ message: "Leave request sent to group creator for approval", actionId: action._id });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -473,7 +473,7 @@ const removeMember = async (req, res) => {
 
     res.json({ message: "Removal request sent to group members for vote", actionId: action._id });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -501,7 +501,7 @@ const editExpense = async (req, res) => {
 
     res.json({ message: "Expense updated", expense });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -524,7 +524,7 @@ const addComment = async (req, res) => {
 
     res.status(201).json({ comments: expense.comments });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -549,7 +549,7 @@ const updateGroup = async (req, res) => {
 
     res.json(group);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 

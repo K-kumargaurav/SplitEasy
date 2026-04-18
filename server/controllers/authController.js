@@ -2,6 +2,7 @@ const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { OAuth2Client } = require("google-auth-library");
+const { body, validationResult } = require("express-validator");
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -16,9 +17,8 @@ const generateUsername = async (name) => {
   return username;
 };
 
-const generateToken = (userId) => {
-  return jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: "7d" });
-};
+const generateToken = (userId) =>
+  jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
 const formatUser = (user) => ({
   _id: user._id,
@@ -31,26 +31,40 @@ const formatUser = (user) => ({
   country: user.country || "India",
 });
 
+/* ── Validation rules ── */
+const registerValidation = [
+  body("name").trim().notEmpty().withMessage("Name is required").isLength({ max: 60 }),
+  body("email").trim().isEmail().withMessage("Valid email is required").normalizeEmail(),
+  body("password")
+    .isLength({ min: 8 }).withMessage("Password must be at least 8 characters")
+    .matches(/[A-Z]/).withMessage("Password must contain an uppercase letter")
+    .matches(/[0-9]/).withMessage("Password must contain a number"),
+];
+
+const loginValidation = [
+  body("email").trim().isEmail().normalizeEmail(),
+  body("password").notEmpty(),
+];
+
 // @POST /api/auth/register
 const register = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty())
+    return res.status(400).json({ message: errors.array()[0].msg });
+
   try {
     const { name, email, password, country } = req.body;
 
-    if (!password || password.length < 6) {
-      return res.status(400).json({ message: "Password must be at least 6 characters" });
-    }
-
     const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: "Email already exists" });
-    }
+    if (existingUser)
+      return res.status(400).json({ message: "Email already registered" });
 
-    const salt = await bcrypt.genSalt(10);
+    const salt = await bcrypt.genSalt(12);
     const hashedPassword = await bcrypt.hash(password, salt);
     const username = await generateUsername(name);
 
     const user = await User.create({
-      name,
+      name: name.trim(),
       email,
       password: hashedPassword,
       username,
@@ -64,28 +78,28 @@ const register = async (req, res) => {
       user: formatUser(user),
     });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error("register:", error);
+    res.status(500).json({ message: "Registration failed" });
   }
 };
 
 // @POST /api/auth/login
 const login = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty())
+    return res.status(400).json({ message: "Invalid email or password" });
+
   try {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user) {
+    // Generic message to prevent user enumeration
+    if (!user || !user.password)
       return res.status(400).json({ message: "Invalid email or password" });
-    }
-
-    if (!user.password) {
-      return res.status(400).json({ message: "This account uses Google sign-in. Please continue with Google." });
-    }
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
+    if (!isMatch)
       return res.status(400).json({ message: "Invalid email or password" });
-    }
 
     user.isOnline = true;
     await user.save();
@@ -96,7 +110,8 @@ const login = async (req, res) => {
       user: formatUser(user),
     });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error("login:", error);
+    res.status(500).json({ message: "Login failed" });
   }
 };
 
@@ -104,9 +119,8 @@ const login = async (req, res) => {
 const googleAuth = async (req, res) => {
   try {
     const { credential } = req.body;
-    if (!credential) {
+    if (!credential)
       return res.status(400).json({ message: "Google credential required" });
-    }
 
     const ticket = await googleClient.verifyIdToken({
       idToken: credential,
@@ -115,11 +129,9 @@ const googleAuth = async (req, res) => {
 
     const { sub: googleId, email, name, picture } = ticket.getPayload();
 
-    // Find existing user by googleId or email
     let user = await User.findOne({ $or: [{ googleId }, { email }] });
 
     if (!user) {
-      // New user — create account
       const username = await generateUsername(name);
       user = await User.create({
         googleId,
@@ -131,7 +143,6 @@ const googleAuth = async (req, res) => {
         country: "India",
       });
     } else {
-      // Existing email account — link googleId
       if (!user.googleId) user.googleId = googleId;
       if (!user.profilePhoto && picture) user.profilePhoto = picture;
       user.isOnline = true;
@@ -144,8 +155,9 @@ const googleAuth = async (req, res) => {
       user: formatUser(user),
     });
   } catch (error) {
-    res.status(401).json({ message: "Google authentication failed", error: error.message });
+    console.error("googleAuth:", error);
+    res.status(401).json({ message: "Google authentication failed" });
   }
 };
 
-module.exports = { register, login, googleAuth };
+module.exports = { register, login, googleAuth, registerValidation, loginValidation };

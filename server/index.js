@@ -4,11 +4,18 @@ const cors = require("cors");
 require("dotenv").config();
 const http = require("http");
 const { Server } = require("socket.io");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
+const mongoSanitize = require("express-mongo-sanitize");
+const jwt = require("jsonwebtoken");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
+/* ── Security headers ── */
+app.use(helmet());
+
+/* ── CORS ── */
 app.use(
   cors({
     origin: function (origin, callback) {
@@ -27,30 +34,68 @@ app.use(
   }),
 );
 
-app.use(express.json());
+/* ── Body parser with size limit ── */
+app.use(express.json({ limit: "10kb" }));
 
-// Test route
+/* ── Sanitize MongoDB operators from req.body / req.query / req.params ── */
+app.use(mongoSanitize());
+
+/* ── Rate limiters ── */
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20,
+  message: { message: "Too many attempts, please try again later" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const otpLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 3,
+  message: { message: "Too many OTP requests, please wait 10 minutes" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const generalLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 120,
+  message: { message: "Too many requests, slow down" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use(generalLimiter);
+
+/* ── Test route ── */
 app.get("/", (req, res) => {
   res.json({ message: "SplitEasy API is running" });
 });
 
-// Routes
+/* ── Routes ── */
 const authRoutes          = require("./routes/authRoutes");
 const userRoutes          = require("./routes/userRoutes");
 const groupRoutes         = require("./routes/groupRoutes");
 const settlementRoutes    = require("./routes/settlementRoutes");
 const pendingActionRoutes = require("./routes/pendingActionRoutes");
 
-app.use("/api/auth",    authRoutes);
+app.use("/api/auth",    authLimiter, authRoutes);
+app.use("/api/users/send-password-otp", otpLimiter);
 app.use("/api/users",   userRoutes);
 app.use("/api/groups",  groupRoutes);
 app.use("/api",         settlementRoutes);
 app.use("/api/groups/:id/pending-actions", pendingActionRoutes);
 
-// Create HTTP server
+/* ── Global error handler (no stack traces to client) ── */
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(err.status || 500).json({ message: err.message || "Server error" });
+});
+
+/* ── HTTP server ── */
 const server = http.createServer(app);
 
-// Socket.io setup
+/* ── Socket.io with JWT auth ── */
 const io = new Server(server, {
   cors: {
     origin: [process.env.CLIENT_URL, "http://localhost:5173"],
@@ -60,26 +105,31 @@ const io = new Server(server, {
 
 global.io = io;
 
-io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
-
-  // Join user-specific room
-  socket.on("join", (userId) => {
-    socket.join(userId);
-  });
-
-  socket.on("disconnect", () => {
-    console.log("User disconnected:", socket.id);
-  });
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token;
+  if (!token) return next(new Error("Authentication required"));
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.userId = decoded.id;
+    next();
+  } catch {
+    next(new Error("Invalid token"));
+  }
 });
 
-// Connect to MongoDB + Start server
+io.on("connection", (socket) => {
+  // Join only the authenticated user's own room
+  socket.join(socket.userId);
+
+  socket.on("disconnect", () => {});
+});
+
+/* ── Connect to MongoDB + Start server ── */
 mongoose
   .connect(process.env.MONGO_URI)
   .then(async () => {
     console.log("MongoDB connected");
 
-    // Backfill: set country = "India" for users who have none
     const User = require("./models/User");
     await User.updateMany({ country: { $exists: false } }, { $set: { country: "India" } });
 
@@ -89,5 +139,5 @@ mongoose
   })
   .catch((error) => {
     console.error("MongoDB error : ", error.message);
-    process.exit(1);  
+    process.exit(1);
   });

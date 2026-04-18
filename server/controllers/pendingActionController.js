@@ -113,7 +113,7 @@ const getPendingActions = async (req, res) => {
 
     res.json(actions);
   } catch (err) {
-    res.status(500).json({ message: "Server error", error: err.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -170,7 +170,7 @@ const castVote = async (req, res) => {
 
     res.json({ message: "Vote recorded", resolved: !!resolution, status: action.status });
   } catch (err) {
-    res.status(500).json({ message: "Server error", error: err.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 

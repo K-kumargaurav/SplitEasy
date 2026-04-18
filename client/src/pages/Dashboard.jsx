@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import api from "../utils/api";
 import MemberSearch from "../components/MemberSearch";
-import socket from "../utils/socket";
+import { getSocket, disconnectSocket } from "../utils/socket";
 import toast from "react-hot-toast";
 import { Eye, EyeOff } from "lucide-react";
 
@@ -176,7 +176,7 @@ function GlassPillNav({ active, onChange, badge, user }) {
 ───────────────────────────────────────── */
 
 export default function Dashboard() {
-  const { user, logout, updateUser } = useAuth();
+  const { user, token, logout, updateUser } = useAuth();
   const { dark, toggle }  = useTheme();
   const navigate          = useNavigate();
 
@@ -235,9 +235,9 @@ export default function Dashboard() {
 
   /* ─── Socket setup ─── */
   useEffect(() => {
-    if (!user?._id) return;
+    if (!user?._id || !token) return;
 
-    socket.emit("join", user._id);
+    const socket = getSocket(token);
 
     const onSettlementRequest = (data) => {
       fetchPendingSettlements();
@@ -271,9 +271,9 @@ export default function Dashboard() {
       socket.off("settlement_request", onSettlementRequest);
       socket.off("settlement_update",  onSettlementUpdate);
       socket.off("new_invite",         onNewInvite);
-      socket.disconnect();
+      disconnectSocket();
     };
-  }, [user?._id]);
+  }, [user?._id, token]);
 
   /* ─── Initial data fetch ─── */
   useEffect(() => {

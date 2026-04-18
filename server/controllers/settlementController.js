@@ -88,7 +88,7 @@ const getBalances = async (req, res) => {
     res.json(result);
 
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -133,7 +133,7 @@ const settleUp = async (req, res) => {
       settlement: { ...settlement.toObject(), amount: settlement.amount / 100 },
     });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -208,7 +208,7 @@ const respondToSettlement = async (req, res) => {
         status === "accepted" ? "Settlement confirmed" : "Settlement rejected",
     });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -225,7 +225,7 @@ const getPendingSettlements = async (req, res) => {
 
     res.json(settlements);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -248,7 +248,7 @@ const getSettlements = async (req, res) => {
 
     res.json(settlements);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 

@@ -3,6 +3,7 @@ const Group = require("../models/Group");
 const Expense = require("../models/Expense");
 const Settlement = require("../models/Settlement");
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const sendEmail = require("../utils/sendEmail");
 
 // @GET /api/users/profile
@@ -52,7 +53,7 @@ const getUserById = async (req, res) => {
       profilePublic: true,
     });
   } catch (err) {
-    res.status(500).json({ message: "Server error", error: err.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -61,9 +62,13 @@ const updateProfile = async (req, res) => {
   try {
     const { name, bio, profilePhoto, isOnline, country } = req.body;
     const user = await User.findById(req.user._id);
-    if (name !== undefined) user.name = name;
-    if (bio !== undefined) user.bio = bio;
-    if (profilePhoto !== undefined) user.profilePhoto = profilePhoto;
+    if (name !== undefined) user.name = String(name).trim().slice(0, 60);
+    if (bio  !== undefined) user.bio  = String(bio).slice(0, 150);
+    if (profilePhoto !== undefined) {
+      // Only allow https URLs or empty string
+      if (profilePhoto === "" || /^https:\/\/.+/.test(profilePhoto))
+        user.profilePhoto = profilePhoto;
+    }
     if (country !== undefined) user.country = country;
     const { profilePublic } = req.body;
     if (profilePublic !== undefined) user.profilePublic = profilePublic;
@@ -85,7 +90,7 @@ const updateProfile = async (req, res) => {
       profilePublic: user.profilePublic ?? false,
     });
   } catch (err) {
-    res.status(500).json({ message: "Server error", error: err.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -93,7 +98,7 @@ const updateProfile = async (req, res) => {
 const sendPasswordOtp = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
-    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const otp = String(crypto.randomInt(100000, 999999));
     user.passwordOtp       = otp;
     user.passwordOtpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
     await user.save();
@@ -120,7 +125,8 @@ const sendPasswordOtp = async (req, res) => {
 
     res.json({ message: "OTP sent to your email" });
   } catch (err) {
-    res.status(500).json({ message: "Failed to send OTP", error: err.message });
+    console.error("sendPasswordOtp:", err);
+    res.status(500).json({ message: "Failed to send OTP" });
   }
 };
 
@@ -128,23 +134,24 @@ const sendPasswordOtp = async (req, res) => {
 const changePassword = async (req, res) => {
   try {
     const { otp, newPassword } = req.body;
-    if (!otp || !newPassword || newPassword.length < 6)
-      return res.status(400).json({ message: "OTP and new password (min 6 chars) are required" });
+    if (!otp || !newPassword || newPassword.length < 8)
+      return res.status(400).json({ message: "OTP and new password (min 8 chars) are required" });
 
-    const user = await User.findById(req.user._id);
-    if (!user.passwordOtp || user.passwordOtp !== otp)
+    const user = await User.findById(req.user._id).select("+passwordOtp +passwordOtpExpiry");
+    if (!user.passwordOtp || user.passwordOtp !== String(otp).trim())
       return res.status(400).json({ message: "Invalid OTP" });
     if (!user.passwordOtpExpiry || user.passwordOtpExpiry < new Date())
       return res.status(400).json({ message: "OTP has expired. Please request a new one." });
 
-    const salt = await bcrypt.genSalt(10);
+    const salt = await bcrypt.genSalt(12);
     user.password          = await bcrypt.hash(newPassword, salt);
     user.passwordOtp       = undefined;
     user.passwordOtpExpiry = undefined;
     await user.save();
     res.json({ message: "Password changed successfully" });
   } catch (err) {
-    res.status(500).json({ message: "Server error", error: err.message });
+    console.error("changePassword:", err);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -183,7 +190,7 @@ const sendFriendRequest = async (req, res) => {
 
     res.json({ message: "Friend request sent successfully" });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -216,7 +223,7 @@ const acceptFriendRequest = async (req, res) => {
 
     res.json({ message: "Friend request accepted" });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -229,7 +236,7 @@ const getFriends = async (req, res) => {
     );
     res.json(user.friends);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -242,16 +249,19 @@ const searchUsers = async (req, res) => {
       return res.status(400).json({ message: "Email is required" });
     }
 
+    // Escape special regex chars to prevent ReDoS
+    const escaped = email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const users = await User.find({
-      email: { $regex: email, $options: "i" }, // case-insensitive search
-      _id: { $ne: req.user._id }, // exclude yourself
+      email: { $regex: `^${escaped}`, $options: "i" },
+      _id: { $ne: req.user._id },
     })
       .select("name email")
       .limit(5);
 
     res.json(users);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error("searchUsers:", error);
+    res.status(500).json({ message: "Search failed" });
   }
 };
 
@@ -265,7 +275,7 @@ const getNotifications = async (req, res) => {
       .slice(0, 20); // max 20
     res.json(notifications);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -277,7 +287,7 @@ const markNotificationsRead = async (req, res) => {
     await user.save();
     res.json({ message: "Notifications marked as read" });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -296,7 +306,7 @@ const getUserActivity = async (req, res) => {
 
     res.json(settlements.map((s) => ({ ...s, amount: s.amount / 100 })));
   } catch (err) {
-    res.status(500).json({ message: "Server error", error: err.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -355,7 +365,7 @@ const getUserDebts = async (req, res) => {
 
     res.json(allDebts);
   } catch (err) {
-    res.status(500).json({ message: "Server error", error: err.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 

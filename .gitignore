@@ -16,4 +16,4 @@ desktop.ini
 npm-debug.log*
 
 # VS Code
-.vscode/
+.vscode/.claude/
