@@ -141,6 +141,7 @@ export default function GroupDetail() {
     description: "",
     amount:      "",
     splitType:   "equal",
+    paidById:    "", // empty = current user
   });
   const [customSplits, setCustomSplits] = useState([]);
 
@@ -239,12 +240,13 @@ export default function GroupDetail() {
         description: newExpense.description,
         amount:      amt,
         splitType:   newExpense.splitType,
+        paidById:    newExpense.paidById || undefined,
         customSplits:
           newExpense.splitType === "custom"
             ? customSplits.map((s) => ({ userId: s.userId, share: parseFloat(s.share) }))
             : undefined,
       });
-      setNewExpense({ description: "", amount: "", splitType: "equal" });
+      setNewExpense({ description: "", amount: "", splitType: "equal", paidById: "" });
       setCustomSplits([]);
       setShowExpenseForm(false);
       fetchAll();
@@ -413,15 +415,13 @@ export default function GroupDetail() {
                           uppercase tracking-wider">
               Members
             </p>
-            {group?.createdBy?._id === user?._id && (
-              <button
-                onClick={() => setShowAddMember((v) => !v)}
-                className="text-sm text-emerald-600 font-semibold
-                           touch-manipulation select-none"
-              >
-                + Invite
-              </button>
-            )}
+            <button
+              onClick={() => setShowAddMember((v) => !v)}
+              className="text-sm text-emerald-600 font-semibold
+                         touch-manipulation select-none"
+            >
+              + Invite
+            </button>
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -700,7 +700,7 @@ export default function GroupDetail() {
         onClose={() => {
           setShowExpenseForm(false);
           setCustomSplits([]);
-          setNewExpense({ description: "", amount: "", splitType: "equal" });
+          setNewExpense({ description: "", amount: "", splitType: "equal", paidById: "" });
           setError("");
         }}
         title="Add Expense"
@@ -756,6 +756,39 @@ export default function GroupDetail() {
                          focus:ring-2 focus:ring-emerald-500/20 transition"
               required
             />
+          </div>
+
+          {/* Paid by */}
+          <div>
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+              Paid by
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {group?.members.map((m) => {
+                const isSelected = newExpense.paidById
+                  ? newExpense.paidById === m._id
+                  : m._id === user?._id;
+                return (
+                  <button
+                    key={m._id}
+                    type="button"
+                    onClick={() => setNewExpense((p) => ({ ...p, paidById: m._id }))}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm
+                                font-medium transition touch-manipulation select-none
+                                ${isSelected
+                                  ? "bg-emerald-500 text-white"
+                                  : "bg-gray-100 dark:bg-[#3a3a3c] text-gray-600 dark:text-gray-300"}`}
+                  >
+                    <span className={`w-4 h-4 rounded-full flex items-center justify-center
+                                      text-[9px] font-bold
+                                      ${isSelected ? "bg-white/30 text-white" : "bg-gray-300 dark:bg-[#48484a] text-gray-600"}`}>
+                      {m.name[0].toUpperCase()}
+                    </span>
+                    {m._id === user?._id ? "You" : m.name}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Split type toggle */}
@@ -839,7 +872,7 @@ export default function GroupDetail() {
               onClick={() => {
                 setShowExpenseForm(false);
                 setCustomSplits([]);
-                setNewExpense({ description: "", amount: "", splitType: "equal" });
+                setNewExpense({ description: "", amount: "", splitType: "equal", paidById: "" });
                 setError("");
               }}
               className="flex-1 h-12 bg-gray-100 dark:bg-[#3a3a3c]

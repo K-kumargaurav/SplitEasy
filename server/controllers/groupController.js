@@ -73,7 +73,7 @@ const getGroupById = async (req, res) => {
 // @POST /api/groups/:id/expenses
 const addExpense = async (req, res) => {
   try {
-    const { description, amount, splitType = "equal", customSplits } = req.body;
+    const { description, amount, splitType = "equal", customSplits, paidById } = req.body;
     const amountInPaise = Math.round(amount * 100);
     const group = await Group.findById(req.params.id);
 
@@ -86,27 +86,31 @@ const addExpense = async (req, res) => {
       return res.status(403).json({ message: "Not a member of this group" });
     }
 
+    // Validate paidById is a group member if provided
+    const payer = paidById || req.user._id.toString();
+    if (paidById && !group.members.some((m) => m.toString() === paidById)) {
+      return res.status(400).json({ message: "Paid-by user is not a group member" });
+    }
+
     let splitBetween = [];
 
     if (splitType === "equal") {
-      // Divide equally among all members
       const share = Math.floor(amountInPaise / group.members.length);
       const remainder = amountInPaise % group.members.length;
 
       splitBetween = group.members.map((memberId, index) => ({
         user: memberId,
         share: share + (index < remainder ? 1 : 0),
-        paid: memberId.toString() === req.user._id.toString(),
+        paid: memberId.toString() === payer,
       }));
     } else {
-      // Custom split
       if (!customSplits || customSplits.length === 0) {
         return res.status(400).json({ message: "Custom splits required" });
       }
       splitBetween = customSplits.map((s) => ({
         user: s.userId,
         share: Math.round(s.share * 100),
-        paid: s.userId === req.user._id.toString(),
+        paid: s.userId === payer,
       }));
     }
 
@@ -114,7 +118,7 @@ const addExpense = async (req, res) => {
       group: req.params.id,
       description,
       amount: amountInPaise,
-      paidBy: req.user._id,
+      paidBy: payer,
       splitBetween,
       splitType,
     });
@@ -194,11 +198,9 @@ const sendInvite = async (req, res) => {
       return res.status(404).json({ message: "Group not found" });
     }
 
-    // Only creator can send invites
-    if (group.createdBy.toString() !== req.user._id.toString()) {
-      return res
-        .status(403)
-        .json({ message: "Only group creator can send invites" });
+    // Only members can send invites
+    if (!group.members.some((m) => m.toString() === req.user._id.toString())) {
+      return res.status(403).json({ message: "Only group members can send invites" });
     }
 
     // Check if already a member
