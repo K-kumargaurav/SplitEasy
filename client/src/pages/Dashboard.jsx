@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import { useLanguage } from "../context/LanguageContext";
 import api from "../utils/api";
 import MemberSearch from "../components/MemberSearch";
 import { getSocket, disconnectSocket } from "../utils/socket";
@@ -121,6 +122,7 @@ const NAV_TABS = [
 ];
 
 function GlassPillNav({ active, onChange, badge, user }) {
+  const { t } = useLanguage();
   return (
     <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
       <div className="flex items-center bg-white/80 dark:bg-[#2c2c2e]/85 backdrop-blur-2xl
@@ -138,7 +140,7 @@ function GlassPillNav({ active, onChange, badge, user }) {
                           : "text-gray-400 active:bg-gray-100 dark:active:bg-[#3a3a3c]"}`}
           >
             {tab.icon}
-            <span className="text-[10px] font-semibold leading-none">{tab.label}</span>
+            <span className="text-[10px] font-semibold leading-none">{t(`nav.${tab.id}`)}</span>
 
             {/* Badge (for payments tab) */}
             {tab.id === "payments" && badge > 0 && (
@@ -164,7 +166,7 @@ function GlassPillNav({ active, onChange, badge, user }) {
                         : "text-gray-400 active:bg-gray-100 dark:active:bg-[#3a3a3c]"}`}
         >
           <Avatar name={user?.name || "?"} size={28} />
-          <span className="text-[10px] font-semibold leading-none">Profile</span>
+          <span className="text-[10px] font-semibold leading-none">{t("nav.profile")}</span>
         </button>
       </div>
     </nav>
@@ -178,6 +180,7 @@ function GlassPillNav({ active, onChange, badge, user }) {
 export default function Dashboard() {
   const { user, token, logout, updateUser } = useAuth();
   const { dark, toggle }  = useTheme();
+  const { lang, toggleLang, t } = useLanguage();
   const navigate          = useNavigate();
 
   /* ── Data ── */
@@ -441,13 +444,13 @@ export default function Dashboard() {
     setPasswordError("");
     setPasswordSuccess(false);
     if (passwordForm.new !== passwordForm.confirm) {
-      setPasswordError("New passwords don't match"); return;
+      setPasswordError(t("pw.error_mismatch")); return;
     }
     if (passwordForm.new.length < 6) {
-      setPasswordError("Password must be at least 6 characters"); return;
+      setPasswordError(t("pw.error_length")); return;
     }
     if (!pwOtp.trim()) {
-      setPasswordError("Enter the OTP sent to your email"); return;
+      setPasswordError(t("pw.error_otp")); return;
     }
     setPasswordSaving(true);
     try {
@@ -528,7 +531,7 @@ export default function Dashboard() {
       {/* Settlement Requests */}
       {pendingSettlements.length > 0 && (
         <section>
-          <SectionHeader title={`Settlement Requests (${pendingSettlements.length})`} />
+          <SectionHeader title={`${t("sr.title")} (${pendingSettlements.length})`} />
           <ListGroup>
             {pendingSettlements.map((s) => (
               <div key={s._id} className="p-4">
@@ -536,7 +539,7 @@ export default function Dashboard() {
                   <Avatar name={s.paidBy.name} size={40} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                      {s.paidBy.name} wants to pay you
+                      {s.paidBy.name} {t("sr.wants_to_pay")}
                     </p>
                     <p className="text-xs text-gray-400 truncate">{s.group.name}</p>
                   </div>
@@ -551,7 +554,7 @@ export default function Dashboard() {
                                text-white text-sm font-semibold rounded-xl
                                transition touch-manipulation select-none"
                   >
-                    Confirm ✓
+                    {t("sr.confirm")}
                   </button>
                   <button
                     onClick={() => handleSettlementResponse(s._id, "rejected")}
@@ -559,7 +562,7 @@ export default function Dashboard() {
                                text-gray-700 text-sm font-semibold rounded-xl
                                transition touch-manipulation select-none"
                   >
-                    Reject
+                    {t("sr.reject")}
                   </button>
                 </div>
               </div>
@@ -571,7 +574,7 @@ export default function Dashboard() {
       {/* Pending Invites */}
       {invites.length > 0 && (
         <section>
-          <SectionHeader title={`Invites (${invites.length})`} />
+          <SectionHeader title={`${t("invites.title")} (${invites.length})`} />
           <ListGroup>
             {invites.map((invite) => (
               <div key={invite.groupId} className="p-4">
@@ -585,7 +588,7 @@ export default function Dashboard() {
                       {invite.groupName}
                     </p>
                     <p className="text-xs text-gray-400">
-                      from{" "}
+                      {t("invites.from")}{" "}
                       <span className="text-emerald-600 font-medium">
                         {invite.invitedBy.name}
                       </span>
@@ -604,7 +607,7 @@ export default function Dashboard() {
                                text-white text-sm font-semibold rounded-xl
                                transition touch-manipulation select-none"
                   >
-                    Accept
+                    {t("invites.accept")}
                   </button>
                   <button
                     onClick={() => handleInviteResponse(invite.groupId, "rejected")}
@@ -612,7 +615,7 @@ export default function Dashboard() {
                                text-gray-700 text-sm font-semibold rounded-xl
                                transition touch-manipulation select-none"
                   >
-                    Decline
+                    {t("invites.decline")}
                   </button>
                 </div>
               </div>
@@ -624,13 +627,13 @@ export default function Dashboard() {
       {/* Groups list */}
       <section>
         <SectionHeader
-          title="Your Groups"
+          title={t("groups.title")}
           action={
             <button
               onClick={() => { setError(""); setShowCreateForm(true); }}
               className="text-sm text-emerald-600 font-semibold touch-manipulation select-none"
             >
-              + New
+              {t("groups.new")}
             </button>
           }
         />
@@ -650,15 +653,15 @@ export default function Dashboard() {
         ) : groups.length === 0 ? (
           <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm py-16 text-center">
             <p className="text-4xl mb-3">💸</p>
-            <p className="text-gray-700 dark:text-gray-200 font-semibold text-base">No groups yet</p>
-            <p className="text-gray-400 text-sm mt-1">Create one and start splitting</p>
+            <p className="text-gray-700 dark:text-gray-200 font-semibold text-base">{t("groups.empty_title")}</p>
+            <p className="text-gray-400 text-sm mt-1">{t("groups.empty_sub")}</p>
             <button
               onClick={() => setShowCreateForm(true)}
               className="mt-4 px-5 h-10 bg-emerald-500 active:bg-emerald-600
                          text-white text-sm font-semibold rounded-xl
                          transition touch-manipulation select-none"
             >
-              + Create Group
+              {t("groups.create")}
             </button>
           </div>
         ) : (
@@ -682,7 +685,7 @@ export default function Dashboard() {
                     {group.name}
                   </p>
                   <p className="text-sm text-gray-400 truncate">
-                    {group.description || `${group.members.length} members`}
+                    {group.description || `${group.members.length} ${t("groups.members")}`}
                   </p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
@@ -719,12 +722,12 @@ export default function Dashboard() {
       ) : debts.length === 0 ? (
         <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm py-20 text-center">
           <p className="text-5xl mb-3">🎉</p>
-          <p className="text-gray-700 dark:text-gray-200 font-semibold text-base">All settled up!</p>
-          <p className="text-gray-400 text-sm mt-1">You don't owe anyone right now</p>
+          <p className="text-gray-700 dark:text-gray-200 font-semibold text-base">{t("payments.all_settled")}</p>
+          <p className="text-gray-400 text-sm mt-1">{t("payments.no_debts")}</p>
         </div>
       ) : (
         <section>
-          <SectionHeader title={`You Owe (${debts.length})`} />
+          <SectionHeader title={`${t("payments.you_owe")} (${debts.length})`} />
           <ListGroup>
             {debts.map((debt, i) => (
               <button
@@ -753,7 +756,7 @@ export default function Dashboard() {
             ))}
           </ListGroup>
           <p className="text-center text-xs text-gray-400 mt-3">
-            Tap a row to go to that group and settle up
+            {t("payments.tap_hint")}
           </p>
         </section>
       )}
@@ -779,12 +782,12 @@ export default function Dashboard() {
       ) : activity.length === 0 ? (
         <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm py-20 text-center">
           <p className="text-5xl mb-3">📭</p>
-          <p className="text-gray-700 dark:text-gray-200 font-semibold text-base">No activity yet</p>
-          <p className="text-gray-400 text-sm mt-1">Your settlement history will show here</p>
+          <p className="text-gray-700 dark:text-gray-200 font-semibold text-base">{t("activity.empty_title")}</p>
+          <p className="text-gray-400 text-sm mt-1">{t("activity.empty_sub")}</p>
         </div>
       ) : (
         <section>
-          <SectionHeader title="Recent Activity" />
+          <SectionHeader title={t("activity.recent")} />
           <ListGroup>
             {activity.map((s) => {
               const isSender   = s.paidBy._id === user?._id;
@@ -794,9 +797,9 @@ export default function Dashboard() {
                 : s.status === "rejected" ? "text-red-500 bg-red-50"
                 : "text-amber-600 bg-amber-50";
               const statusLabel =
-                s.status === "accepted" ? "Confirmed"
-                : s.status === "rejected" ? "Rejected"
-                : "Pending";
+                s.status === "accepted" ? t("activity.confirmed")
+                : s.status === "rejected" ? t("activity.rejected")
+                : t("activity.pending");
 
               return (
                 <button
@@ -862,11 +865,11 @@ export default function Dashboard() {
       const now = new Date();
       const isToday = d.toDateString() === now.toDateString();
       const time = d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
-      if (isToday) return `Last seen today at ${time}`;
+      if (isToday) return `${t("profile.last_seen_today")} ${time}`;
       const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
-      if (d.toDateString() === yesterday.toDateString()) return `Last seen yesterday at ${time}`;
+      if (d.toDateString() === yesterday.toDateString()) return `${t("profile.last_seen_yesterday")} ${time}`;
       const date = d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
-      return `Last seen ${date} at ${time}`;
+      return `${t("profile.last_seen")} ${date} ${t("profile.at")} ${time}`;
     };
 
     const pd = profileData;
@@ -962,18 +965,18 @@ export default function Dashboard() {
                           : "bg-gray-100 dark:bg-[#3a3a3c] text-gray-500 dark:text-gray-400 border-gray-200 dark:border-[#48484a]"}`}
           >
             <span className={`w-2 h-2 rounded-full ${pd?.isOnline ? "bg-emerald-500" : "bg-gray-400"}`} />
-            {pd?.isOnline ? "Online" : pd?.lastSeen ? formatLastSeen(pd.lastSeen) : "Offline"}
+            {pd?.isOnline ? t("profile.online") : pd?.lastSeen ? formatLastSeen(pd.lastSeen) : t("profile.offline")}
           </button>
         </div>
 
         {/* ── Bio ── */}
         <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm px-4 py-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Bio</span>
+            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t("profile.bio")}</span>
             {!editingBio && (
               <button onClick={() => { setEditingBio(true); setBioText(pd?.bio || ""); }}
                       className="text-xs text-emerald-600 font-semibold touch-manipulation">
-                {pd?.bio ? "Edit" : "+ Add"}
+                {pd?.bio ? t("profile.bio_edit") : t("profile.bio_add")}
               </button>
             )}
           </div>
@@ -983,7 +986,7 @@ export default function Dashboard() {
                 value={bioText}
                 onChange={(e) => setBioText(e.target.value.slice(0, 150))}
                 rows={3}
-                placeholder="Tell people a bit about yourself…"
+                placeholder={t("profile.bio_placeholder")}
                 className="w-full bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
                            dark:border-[#48484a] rounded-xl px-3 py-2 text-sm
                            text-gray-900 dark:text-white placeholder-gray-400
@@ -996,19 +999,19 @@ export default function Dashboard() {
                         className="flex-1 h-10 bg-emerald-500 active:bg-emerald-600 text-white
                                    text-sm font-semibold rounded-xl transition touch-manipulation
                                    disabled:opacity-50">
-                  {profileSaving ? "Saving…" : "Save"}
+                  {profileSaving ? t("profile.bio_saving") : t("profile.save")}
                 </button>
                 <button onClick={() => setEditingBio(false)}
                         className="flex-1 h-10 bg-gray-100 dark:bg-[#3a3a3c] text-gray-700
                                    dark:text-gray-300 text-sm font-semibold rounded-xl
                                    transition touch-manipulation">
-                  Cancel
+                  {t("profile.cancel")}
                 </button>
               </div>
             </div>
           ) : (
             <p className={`text-sm ${pd?.bio ? "text-gray-700 dark:text-gray-200" : "text-gray-400 italic"}`}>
-              {pd?.bio || "No bio yet"}
+              {pd?.bio || t("profile.no_bio")}
             </p>
           )}
         </div>
@@ -1017,11 +1020,9 @@ export default function Dashboard() {
         <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm px-4 py-3.5
                         flex items-center justify-between">
           <div>
-            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">Public Profile</p>
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{t("profile.public")}</p>
             <p className="text-xs text-gray-400 mt-0.5">
-              {pd?.profilePublic
-                ? "Others can see your photo, bio & username"
-                : "Only your name is visible to others"}
+              {pd?.profilePublic ? t("profile.public_on") : t("profile.public_off")}
             </p>
           </div>
           <button
@@ -1052,7 +1053,7 @@ export default function Dashboard() {
                        active:bg-gray-50 dark:active:bg-[#3a3a3c] transition touch-manipulation"
             onClick={() => setActiveView("groups")}
           >
-            <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">Groups joined</span>
+            <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">{t("profile.groups_joined")}</span>
             <div className="flex items-center gap-1.5">
               <span className="text-sm font-bold text-gray-900 dark:text-white">{groups.length}</span>
               <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1061,9 +1062,9 @@ export default function Dashboard() {
             </div>
           </button>
           <div className="flex items-center justify-between px-4 py-3.5">
-            <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">Pending payments</span>
+            <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">{t("profile.pending_payments")}</span>
             <span className={`text-sm font-bold ${debts.length > 0 ? "text-red-500" : "text-emerald-600"}`}>
-              {debts.length > 0 ? debts.length : "All clear ✓"}
+              {debts.length > 0 ? debts.length : t("profile.all_clear")}
             </span>
           </div>
         </div>
@@ -1084,7 +1085,7 @@ export default function Dashboard() {
                            00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
               </div>
-              <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">Change Password</span>
+              <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{t("profile.change_password")}</span>
             </div>
             <svg className={`w-4 h-4 text-gray-400 transition-transform ${showChangePassword ? "rotate-90" : ""}`}
                  fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1099,14 +1100,14 @@ export default function Dashboard() {
               )}
               {passwordSuccess && (
                 <p className="text-xs text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-2 rounded-xl">
-                  Password changed successfully ✓
+                  {t("pw.success")}
                 </p>
               )}
 
               {pwStep === "send" ? (
                 <>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    We'll send a 6-digit verification code to{" "}
+                    {t("pw.will_send")}{" "}
                     <span className="font-semibold text-gray-700 dark:text-gray-200">
                       {profileData?.email || user?.email}
                     </span>
@@ -1118,25 +1119,25 @@ export default function Dashboard() {
                                text-sm font-semibold rounded-xl transition touch-manipulation
                                disabled:opacity-50"
                   >
-                    {otpSending ? "Sending…" : "Send Verification Code"}
+                    {otpSending ? t("pw.sending") : t("pw.send_code")}
                   </button>
                 </>
               ) : (
                 <form onSubmit={handleChangePassword} className="space-y-3">
                   <p className="text-xs text-emerald-600">
-                    ✓ Code sent! Check your email.
+                    {t("pw.code_sent")}
                   </p>
 
                   {/* OTP */}
                   <div>
                     <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                      Verification Code
+                      {t("pw.verification_code")}
                     </label>
                     <input
                       type="text"
                       inputMode="numeric"
                       maxLength={6}
-                      placeholder="6-digit code"
+                      placeholder={t("pw.code_placeholder")}
                       value={pwOtp}
                       onChange={(e) => setPwOtp(e.target.value.replace(/\D/g, ""))}
                       className="w-full h-11 bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
@@ -1149,8 +1150,8 @@ export default function Dashboard() {
 
                   {/* New / Confirm password */}
                   {[
-                    { key: "new",     label: "New Password" },
-                    { key: "confirm", label: "Confirm Password" },
+                    { key: "new",     label: t("pw.new_password") },
+                    { key: "confirm", label: t("pw.confirm_password") },
                   ].map(({ key, label }) => (
                     <div key={key}>
                       <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{label}</label>
@@ -1182,20 +1183,47 @@ export default function Dashboard() {
                             className="flex-1 h-11 bg-emerald-500 active:bg-emerald-600 text-white
                                        text-sm font-semibold rounded-xl transition touch-manipulation
                                        disabled:opacity-50">
-                      {passwordSaving ? "Changing…" : "Change Password"}
+                      {passwordSaving ? t("pw.changing") : t("pw.change")}
                     </button>
                     <button type="button"
                             onClick={() => { setPwStep("send"); setPwOtp(""); setPasswordError(""); }}
                             className="h-11 px-4 bg-gray-100 dark:bg-[#3a3a3c] text-gray-600
                                        dark:text-gray-300 text-sm font-semibold rounded-xl
                                        transition touch-manipulation">
-                      Resend
+                      {t("pw.resend")}
                     </button>
                   </div>
                 </form>
               )}
             </div>
           )}
+        </div>
+
+        {/* ── Language ── */}
+        <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3.5">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-purple-50 dark:bg-purple-900/20
+                              flex items-center justify-center shrink-0 text-lg">
+                🌐
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                  {t("profile.language")}
+                </p>
+                <p className="text-xs text-gray-400">{lang === "en" ? "English" : "हिंदी"}</p>
+              </div>
+            </div>
+            <button
+              onClick={toggleLang}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full
+                         border border-gray-200 dark:border-[#3a3a3c]
+                         text-sm font-semibold text-gray-700 dark:text-gray-200
+                         active:bg-gray-100 dark:active:bg-[#3a3a3c] transition touch-manipulation"
+            >
+              {lang === "en" ? "हिंदी" : "English"}
+            </button>
+          </div>
         </div>
 
         {/* ── Sign out ── */}
@@ -1205,7 +1233,7 @@ export default function Dashboard() {
                      dark:active:bg-red-900/30 text-red-600 dark:text-red-400
                      font-semibold rounded-2xl transition touch-manipulation select-none"
         >
-          Sign Out
+          {t("profile.sign_out")}
         </button>
 
       </section>
@@ -1297,11 +1325,11 @@ export default function Dashboard() {
                                 dark:border-[#3a3a3c] overflow-hidden z-20">
                   <div className="px-4 py-3 border-b border-gray-100 dark:border-[#3a3a3c]">
                     <p className="font-semibold text-gray-900 dark:text-white text-sm">
-                      Notifications
+                      {t("notif.title")}
                     </p>
                   </div>
                   {notifications.length === 0 ? (
-                    <p className="text-center text-gray-400 text-sm py-8">Nothing here yet</p>
+                    <p className="text-center text-gray-400 text-sm py-8">{t("notif.empty")}</p>
                   ) : (
                     <div className="max-h-72 overflow-y-auto divide-y divide-gray-50
                                     dark:divide-[#3a3a3c]">
@@ -1354,7 +1382,7 @@ export default function Dashboard() {
       <BottomSheet
         open={showCreateForm}
         onClose={() => setShowCreateForm(false)}
-        title="Create Group"
+        title={t("create_group.title")}
       >
         {error && (
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200
@@ -1366,11 +1394,11 @@ export default function Dashboard() {
         <form onSubmit={handleCreateGroup} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-              Group Name
+              {t("create_group.name")}
             </label>
             <input
               type="text"
-              placeholder="e.g. Goa Trip, Monthly Rent…"
+              placeholder={t("create_group.name_placeholder")}
               value={newGroup.name}
               onChange={(e) => setNewGroup({ ...newGroup, name: e.target.value })}
               className="w-full h-12 bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
@@ -1385,12 +1413,12 @@ export default function Dashboard() {
 
           <div>
             <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-              Notes{" "}
-              <span className="text-gray-400 font-normal">(optional)</span>
+              {t("create_group.notes")}{" "}
+              <span className="text-gray-400 font-normal">{t("create_group.notes_optional")}</span>
             </label>
             <input
               type="text"
-              placeholder="Purpose, dates, etc."
+              placeholder={t("create_group.notes_placeholder")}
               value={newGroup.description}
               onChange={(e) => setNewGroup({ ...newGroup, description: e.target.value })}
               className="w-full h-12 bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
@@ -1404,7 +1432,7 @@ export default function Dashboard() {
 
           <div>
             <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-              Invite Members
+              {t("create_group.invite_members")}
             </label>
             <MemberSearch
               onAdd={(u) => setSelectedMembers((prev) => [...prev, u])}
@@ -1446,7 +1474,7 @@ export default function Dashboard() {
                          text-white font-semibold rounded-xl transition
                          touch-manipulation select-none"
             >
-              Create
+              {t("create_group.create")}
             </button>
             <button
               type="button"
@@ -1456,7 +1484,7 @@ export default function Dashboard() {
                          text-gray-700 dark:text-gray-200 font-semibold rounded-xl
                          transition touch-manipulation select-none"
             >
-              Cancel
+              {t("create_group.cancel")}
             </button>
           </div>
         </form>

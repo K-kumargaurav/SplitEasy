@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import { useLanguage } from "../context/LanguageContext";
 import { GoogleLogin } from "@react-oauth/google";
 import api from "../utils/api";
 
@@ -105,6 +106,7 @@ export default function Register() {
 
   const { login }  = useAuth();
   const navigate   = useNavigate();
+  const { t }      = useLanguage();
 
   const handleGoogleSuccess = async ({ credential }) => {
     setLoading(true);
@@ -154,7 +156,7 @@ export default function Register() {
           SplitEasy
         </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Split bills, not friendships
+          {t("reg.tagline")}
         </p>
       </div>
 
@@ -172,9 +174,9 @@ export default function Register() {
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <InputField
-            label="Full Name"
+            label={t("reg.full_name")}
             type="text"
-            placeholder="Your name"
+            placeholder={t("reg.name_placeholder")}
             value={form.name}
             onChange={handleChange("name")}
             autoComplete="name"
@@ -183,7 +185,7 @@ export default function Register() {
           />
 
           <InputField
-            label="Email"
+            label={t("reg.email")}
             type="email"
             placeholder="you@example.com"
             value={form.email}
@@ -195,7 +197,7 @@ export default function Register() {
           {/* Country */}
           <div>
             <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-              Country
+              {t("reg.country")}
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg pointer-events-none select-none">
@@ -224,12 +226,12 @@ export default function Register() {
           {/* Password with show/hide toggle */}
           <div>
             <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-              Password
+              {t("reg.password")}
             </label>
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
-                placeholder="Min. 6 characters"
+                placeholder={t("reg.pass_placeholder")}
                 value={form.password}
                 onChange={handleChange("password")}
                 autoComplete="new-password"
@@ -261,13 +263,13 @@ export default function Register() {
                        rounded-xl text-base font-semibold transition
                        disabled:opacity-50 select-none touch-manipulation"
           >
-            {loading ? "Creating account…" : "Create Account"}
+            {loading ? t("reg.creating") : t("reg.create")}
           </button>
 
           {/* Divider */}
           <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-gray-200 dark:bg-[#3a3a3c]" />
-            <span className="text-xs text-gray-400 select-none">or</span>
+            <span className="text-xs text-gray-400 select-none">{t("reg.or")}</span>
             <div className="flex-1 h-px bg-gray-200 dark:bg-[#3a3a3c]" />
           </div>
 
@@ -287,9 +289,9 @@ export default function Register() {
 
         <div className="border-t border-gray-100 dark:border-[#3a3a3c] px-5 py-4
                         text-center text-sm text-gray-500 dark:text-gray-400">
-          Already have an account?{" "}
+          {t("reg.has_account")}{" "}
           <Link to="/login" className="text-emerald-600 font-semibold">
-            Sign In
+            {t("reg.sign_in")}
           </Link>
         </div>
       </div>

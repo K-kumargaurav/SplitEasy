@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import { useLanguage } from "../context/LanguageContext";
 import api from "../utils/api";
 import MemberSearch from "../components/MemberSearch";
 import toast from "react-hot-toast";
@@ -135,6 +136,7 @@ export default function GroupDetail() {
   const { id }                          = useParams();
   const { user, loading: authLoading }  = useAuth();
   const { dark, toggle }                = useTheme();
+  const { t }                           = useLanguage();
   const navigate                        = useNavigate();
   const groupPhotoRef                   = useRef(null);
 
@@ -420,7 +422,7 @@ export default function GroupDetail() {
   };
 
   const handleLeaveGroup = async () => {
-    if (!window.confirm("Request to leave this group? The creator must approve.")) return;
+    if (!window.confirm(t("gd.confirm_leave"))) return;
     try {
       await api.delete(`/groups/${id}/leave`);
       toast.success("Leave request sent to group creator");
@@ -431,7 +433,7 @@ export default function GroupDetail() {
   };
 
   const handleRemoveMember = async (memberId, memberName) => {
-    if (!window.confirm(`Start a vote to remove ${memberName}? Other members must approve.`)) return;
+    if (!window.confirm(t("gd.confirm_remove", { name: memberName }))) return;
     try {
       await api.delete(`/groups/${id}/members/${memberId}`);
       toast.success(`Removal vote started for ${memberName}`);
@@ -505,7 +507,7 @@ export default function GroupDetail() {
       date:    new Date(e.createdAt),
       icon:    catIcon(e.category),
       title:   e.description,
-      subtitle: `Paid by ${e.paidBy.name}`,
+      subtitle: `${t("gd.paid_by")} ${e.paidBy.name}`,
       amount:  `₹${e.amount.toFixed(2)}`,
       amountColor: "text-gray-900 dark:text-white",
     })),
@@ -514,7 +516,7 @@ export default function GroupDetail() {
       date:    new Date(s.createdAt),
       icon:    s.status === "accepted" ? "✅" : s.status === "rejected" ? "❌" : "⏳",
       title:   `${s.paidBy.name} → ${s.paidTo.name}`,
-      subtitle: s.status === "accepted" ? "Settled" : s.status === "rejected" ? "Rejected" : "Pending",
+      subtitle: s.status === "accepted" ? t("gd.status_settled") : s.status === "rejected" ? t("gd.status_rejected") : t("gd.status_pending"),
       amount:  `₹${(s.amount / 100).toFixed(2)}`,
       amountColor: s.status === "accepted" ? "text-emerald-600" : "text-gray-400",
     })),
@@ -634,7 +636,7 @@ export default function GroupDetail() {
           <span className="text-xs text-gray-500 dark:text-gray-400
                            bg-gray-100 dark:bg-[#3a3a3c] px-2.5 py-1
                            rounded-full shrink-0 select-none">
-            {group?.members.length} members
+            {group?.members.length} {t("gd.members_count")}
           </span>
         </div>
       </header>
@@ -655,13 +657,13 @@ export default function GroupDetail() {
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs font-semibold text-gray-500 dark:text-gray-400
                           uppercase tracking-wider">
-              Members
+              {t("gd.members")}
             </p>
             <button
               onClick={() => setShowAddMember((v) => !v)}
               className="text-sm text-emerald-600 font-semibold touch-manipulation select-none"
             >
-              + Invite
+              {t("gd.invite")}
             </button>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -688,7 +690,7 @@ export default function GroupDetail() {
                     {isMe && (
                       <span className="text-[10px] bg-emerald-600 text-white
                                        px-1.5 py-0.5 rounded-full font-semibold select-none">
-                        YOU
+                        {t("gd.you_badge")}
                       </span>
                     )}
                   </button>
@@ -714,7 +716,7 @@ export default function GroupDetail() {
               onClick={handleLeaveGroup}
               className="mt-3 text-xs text-red-500 font-medium touch-manipulation"
             >
-              Leave group
+              {t("gd.leave_group")}
             </button>
           )}
 
@@ -722,12 +724,12 @@ export default function GroupDetail() {
           {pendingApprovals.length > 0 && (
             <div className="mt-3 pt-3 border-t border-gray-100 dark:border-[#3a3a3c] space-y-2">
               <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider">
-                Invite Requests ({pendingApprovals.length})
+                {t("gd.invite_requests")} ({pendingApprovals.length})
               </p>
               {pendingApprovals.map((inv) => (
                 <div key={inv.user} className="flex items-center justify-between">
                   <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
-                    User invited by a member
+                    {t("gd.user_invited")}
                   </span>
                   <div className="flex gap-2 shrink-0">
                     <button
@@ -735,7 +737,7 @@ export default function GroupDetail() {
                       className="text-xs px-2.5 py-1 bg-emerald-500 text-white
                                  rounded-lg font-semibold touch-manipulation"
                     >
-                      Approve
+                      {t("gd.approve")}
                     </button>
                     <button
                       onClick={() => handleApproveInvite(inv.user, false)}
@@ -743,7 +745,7 @@ export default function GroupDetail() {
                                  text-gray-600 dark:text-gray-300 rounded-lg font-semibold
                                  touch-manipulation"
                     >
-                      Decline
+                      {t("gd.decline")}
                     </button>
                   </div>
                 </div>
@@ -775,7 +777,7 @@ export default function GroupDetail() {
               <div className="px-4 py-3 border-b border-amber-200/60 dark:border-amber-700/40">
                 <p className="text-xs font-semibold text-amber-700 dark:text-amber-400
                                uppercase tracking-wider">
-                  🗳 Pending Approval ({myActions.length})
+                  🗳 {t("gd.pending_approval")} ({myActions.length})
                 </p>
               </div>
               <div className="divide-y divide-amber-100 dark:divide-amber-800/30">
@@ -788,11 +790,11 @@ export default function GroupDetail() {
                   let headline = "";
                   let detail   = "";
                   if (action.type === "leave_request") {
-                    headline = `${action.initiator?.name} wants to leave`;
-                    detail   = "Approve or decline their leave request";
+                    headline = `${action.initiator?.name} ${t("gd.wants_to_leave")}`;
+                    detail   = t("gd.leave_detail");
                   } else if (action.type === "remove_member") {
-                    headline = `Remove ${action.targetUser?.name}?`;
-                    detail   = `Proposed by ${action.initiator?.name} · majority vote required`;
+                    headline = `${t("gd.remove_prefix")} ${action.targetUser?.name}?`;
+                    detail   = `${t("gd.proposed_by")} ${action.initiator?.name} · ${t("gd.majority_required")}`;
                   } else if (action.type === "expense_edit") {
                     headline = `Edit proposed for "${action.expenseId?.description || "expense"}"`;
                     const changes = [];
@@ -814,8 +816,8 @@ export default function GroupDetail() {
                       {totalVoters > 1 && (
                         <div className="mb-3">
                           <div className="flex justify-between text-xs text-gray-400 mb-1">
-                            <span>✓ {approvals} approved</span>
-                            <span>✗ {rejections} rejected</span>
+                            <span>✓ {t("gd.approved_count", { n: approvals })}</span>
+                            <span>✗ {t("gd.rejected_count", { n: rejections })}</span>
                           </div>
                           <div className="h-1.5 bg-gray-200 dark:bg-[#3a3a3c] rounded-full overflow-hidden">
                             <div
@@ -834,7 +836,7 @@ export default function GroupDetail() {
                                      text-white text-sm font-semibold rounded-xl
                                      transition touch-manipulation disabled:opacity-50"
                         >
-                          {isVoting ? "…" : "Approve"}
+                          {isVoting ? "…" : t("gd.approve_vote")}
                         </button>
                         <button
                           disabled={isVoting}
@@ -843,7 +845,7 @@ export default function GroupDetail() {
                                      text-red-600 dark:text-red-400 text-sm font-semibold
                                      rounded-xl transition touch-manipulation disabled:opacity-50"
                         >
-                          {isVoting ? "…" : "Decline"}
+                          {isVoting ? "…" : t("gd.decline_vote")}
                         </button>
                       </div>
                     </div>
@@ -861,12 +863,12 @@ export default function GroupDetail() {
               key={tab}
               onClick={() => { setActiveTab(tab); setError(""); }}
               className={`flex-1 py-2.5 rounded-xl text-sm font-semibold
-                          capitalize transition-all touch-manipulation select-none
+                          transition-all touch-manipulation select-none
                           ${activeTab === tab
                             ? "bg-white dark:bg-[#2c2c2e] shadow-sm text-emerald-600"
                             : "text-gray-500 dark:text-gray-400"}`}
             >
-              {tab}
+              {t(`gd.tab_${tab}`)}
             </button>
           ))}
         </div>
@@ -885,7 +887,7 @@ export default function GroupDetail() {
                                 ? "bg-emerald-500 text-white"
                                 : "bg-white dark:bg-[#2c2c2e] text-gray-600 dark:text-gray-300 shadow-sm"}`}
                 >
-                  📊 Breakdown
+                  {t("gd.breakdown")}
                 </button>
                 <button
                   onClick={handleExportCSV}
@@ -893,7 +895,7 @@ export default function GroupDetail() {
                              bg-white dark:bg-[#2c2c2e] text-gray-600 dark:text-gray-300
                              shadow-sm transition touch-manipulation select-none"
                 >
-                  ⬇ Export CSV
+                  {t("gd.export_csv")}
                 </button>
               </div>
             )}
@@ -902,13 +904,13 @@ export default function GroupDetail() {
             {showBreakdown && breakdown.length > 0 && (
               <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm p-4 space-y-2.5">
                 <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
-                  Spending Breakdown
+                  {t("gd.spending_breakdown")}
                 </p>
                 {breakdown.map((cat) => (
                   <div key={cat.value}>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm text-gray-700 dark:text-gray-200">
-                        {cat.icon} {cat.label}
+                        {cat.icon} {t(`cat.${cat.value}`)}
                       </span>
                       <span className="text-sm font-semibold text-gray-900 dark:text-white">
                         ₹{cat.total.toFixed(2)}
@@ -928,8 +930,8 @@ export default function GroupDetail() {
             {expenses.length === 0 ? (
               <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm py-16 text-center">
                 <p className="text-4xl mb-3">🧾</p>
-                <p className="text-gray-700 dark:text-gray-200 font-semibold">No expenses yet</p>
-                <p className="text-gray-400 text-sm mt-1">Add the first one to start tracking</p>
+                <p className="text-gray-700 dark:text-gray-200 font-semibold">{t("gd.no_expenses_title")}</p>
+                <p className="text-gray-400 text-sm mt-1">{t("gd.no_expenses_sub")}</p>
               </div>
             ) : (
               <ListGroup>
@@ -944,7 +946,7 @@ export default function GroupDetail() {
                             {expense.description}
                           </p>
                           <p className="text-xs text-gray-400 mt-0.5">
-                            Paid by{" "}
+                            {t("gd.paid_by")}{" "}
                             <span className="text-emerald-600 font-semibold">
                               {expense.paidBy.name}
                             </span>
@@ -980,7 +982,7 @@ export default function GroupDetail() {
                             {/* Delete */}
                             <button
                               onClick={async () => {
-                                if (!window.confirm("Delete this expense?")) return;
+                                if (!window.confirm(t("gd.confirm_delete"))) return;
                                 try {
                                   await api.delete(`/groups/${id}/expenses/${expense._id}`);
                                   toast.success("Expense deleted");
@@ -1029,7 +1031,7 @@ export default function GroupDetail() {
                       className="text-xs text-gray-400 hover:text-emerald-600 transition
                                  touch-manipulation select-none"
                     >
-                      💬 {expense.comments?.length || 0} note{expense.comments?.length !== 1 ? "s" : ""}
+                      💬 {t("gd.notes_count", { n: expense.comments?.length || 0 })}
                     </button>
 
                     {/* Comments section */}
@@ -1052,7 +1054,7 @@ export default function GroupDetail() {
                         <div className="flex gap-2 mt-1">
                           <input
                             type="text"
-                            placeholder="Add a note…"
+                            placeholder={t("gd.note_placeholder")}
                             value={commentInputs[expense._id] || ""}
                             onChange={(e) =>
                               setCommentInputs((prev) => ({ ...prev, [expense._id]: e.target.value }))
@@ -1073,7 +1075,7 @@ export default function GroupDetail() {
                                        text-sm font-semibold rounded-xl transition
                                        touch-manipulation disabled:opacity-50"
                           >
-                            {commentLoading === expense._id ? "…" : "Post"}
+                            {commentLoading === expense._id ? "…" : t("gd.post")}
                           </button>
                         </div>
                       </div>
@@ -1091,15 +1093,15 @@ export default function GroupDetail() {
             {balances.length === 0 ? (
               <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm py-16 text-center">
                 <p className="text-4xl mb-3">🎉</p>
-                <p className="text-gray-700 dark:text-gray-200 font-semibold">All settled up!</p>
-                <p className="text-gray-400 text-sm mt-1">No pending balances</p>
+                <p className="text-gray-700 dark:text-gray-200 font-semibold">{t("gd.all_settled")}</p>
+                <p className="text-gray-400 text-sm mt-1">{t("gd.no_balances")}</p>
               </div>
             ) : (
               <div className="space-y-4">
 
                 {myDebts.length > 0 && (
                   <div>
-                    <SectionLabel>You Owe</SectionLabel>
+                    <SectionLabel>{t("gd.you_owe")}</SectionLabel>
                     <ListGroup>
                       {myDebts.map((b, i) => (
                         <div key={i} className="px-4 py-3.5">
@@ -1107,7 +1109,7 @@ export default function GroupDetail() {
                             <div className="flex items-center gap-2">
                               <Avatar name={getMemberName(b.owedTo)} size={32} />
                               <p className="text-sm text-gray-700 dark:text-gray-300">
-                                You owe{" "}
+                                {t("gd.you_owe_text")}{" "}
                                 <span className="font-semibold text-gray-900 dark:text-white">
                                   {getMemberName(b.owedTo)}
                                 </span>
@@ -1131,7 +1133,7 @@ export default function GroupDetail() {
                                               ? "bg-gray-100 dark:bg-[#3a3a3c] text-gray-400 cursor-not-allowed"
                                               : "bg-emerald-500 active:bg-emerald-600 text-white"}`}
                               >
-                                {alreadyPending ? "⏳ Request Pending" : "Settle Up"}
+                                {alreadyPending ? t("gd.request_pending") : t("gd.settle_up")}
                               </button>
                             );
                           })()}
@@ -1143,7 +1145,7 @@ export default function GroupDetail() {
 
                 {theyOweMe.length > 0 && (
                   <div>
-                    <SectionLabel>Owed to You</SectionLabel>
+                    <SectionLabel>{t("gd.owed_to_you")}</SectionLabel>
                     <ListGroup>
                       {theyOweMe.map((b, i) => (
                         <div key={i} className="flex items-center justify-between px-4 py-3.5">
@@ -1153,7 +1155,7 @@ export default function GroupDetail() {
                               <span className="font-semibold text-gray-900 dark:text-white">
                                 {getMemberName(b.owedBy)}
                               </span>{" "}
-                              owes you
+                              {t("gd.owes_you")}
                             </p>
                           </div>
                           <span className="text-base font-bold text-emerald-600">
@@ -1167,7 +1169,7 @@ export default function GroupDetail() {
 
                 {otherDebts.length > 0 && (
                   <div>
-                    <SectionLabel>Others</SectionLabel>
+                    <SectionLabel>{t("gd.others")}</SectionLabel>
                     <ListGroup>
                       {otherDebts.map((b, i) => (
                         <div key={i} className="flex items-center justify-between px-4 py-3.5">
@@ -1175,7 +1177,7 @@ export default function GroupDetail() {
                             <span className="font-semibold text-gray-900 dark:text-white">
                               {getMemberName(b.owedBy)}
                             </span>{" "}
-                            owes{" "}
+                            {t("gd.owes")}{" "}
                             <span className="font-semibold text-gray-900 dark:text-white">
                               {getMemberName(b.owedTo)}
                             </span>
@@ -1200,8 +1202,8 @@ export default function GroupDetail() {
             {activityItems.length === 0 ? (
               <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm py-16 text-center">
                 <p className="text-4xl mb-3">📭</p>
-                <p className="text-gray-700 dark:text-gray-200 font-semibold">No activity yet</p>
-                <p className="text-gray-400 text-sm mt-1">Expenses and settlements will appear here</p>
+                <p className="text-gray-700 dark:text-gray-200 font-semibold">{t("gd.no_activity_title")}</p>
+                <p className="text-gray-400 text-sm mt-1">{t("gd.no_activity_sub")}</p>
               </div>
             ) : (
               <ListGroup>
@@ -1242,7 +1244,7 @@ export default function GroupDetail() {
                        text-sm font-semibold rounded-2xl shadow-lg transition
                        touch-manipulation select-none"
           >
-            + Add Expense
+            {t("gd.add_expense")}
           </button>
         </div>
       )}
@@ -1256,7 +1258,7 @@ export default function GroupDetail() {
           setNewExpense({ description: "", amount: "", splitType: "equal", paidById: "", category: "other" });
           setError("");
         }}
-        title="Add Expense"
+        title={t("gd.add_expense_sheet_title")}
       >
         <form onSubmit={handleAddExpense} className="space-y-4">
           {error && (
@@ -1270,11 +1272,11 @@ export default function GroupDetail() {
           {/* Description */}
           <div>
             <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-              Description
+              {t("gd.description")}
             </label>
             <input
               type="text"
-              placeholder="e.g. Dinner, Hotel, Fuel…"
+              placeholder={t("gd.description_placeholder")}
               value={newExpense.description}
               onChange={(e) => setNewExpense((p) => ({ ...p, description: e.target.value }))}
               className="w-full h-12 bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
@@ -1289,7 +1291,7 @@ export default function GroupDetail() {
           {/* Amount */}
           <div>
             <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-              Amount (₹)
+              {t("gd.amount")}
             </label>
             <input
               type="number"
@@ -1312,7 +1314,7 @@ export default function GroupDetail() {
           {/* Category */}
           <div>
             <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-              Category
+              {t("gd.category")}
             </label>
             <div className="flex flex-wrap gap-2">
               {CATEGORIES.map((cat) => (
@@ -1327,7 +1329,7 @@ export default function GroupDetail() {
                                 : "bg-gray-100 dark:bg-[#3a3a3c] text-gray-600 dark:text-gray-300"}`}
                 >
                   <span>{cat.icon}</span>
-                  {cat.label}
+                  {t(`cat.${cat.value}`)}
                 </button>
               ))}
             </div>
@@ -1336,7 +1338,7 @@ export default function GroupDetail() {
           {/* Paid by */}
           <div>
             <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-              Paid by
+              {t("gd.paid_by_label")}
             </label>
             <div className="flex flex-wrap gap-2">
               {group?.members.map((m) => {
@@ -1359,7 +1361,7 @@ export default function GroupDetail() {
                                       ${isSelected ? "bg-white/30 text-white" : "bg-gray-300 dark:bg-[#48484a] text-gray-600"}`}>
                       {m.name[0].toUpperCase()}
                     </span>
-                    {m._id === user?._id ? "You" : m.name}
+                    {m._id === user?._id ? t("gd.you_label") : m.name}
                   </button>
                 );
               })}
@@ -1369,7 +1371,7 @@ export default function GroupDetail() {
           {/* Split type */}
           <div>
             <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-              Split Type
+              {t("gd.split_type")}
             </label>
             <div className="flex bg-gray-100 dark:bg-[#3a3a3c] rounded-xl p-1">
               {["equal", "custom"].map((type) => (
@@ -1377,13 +1379,13 @@ export default function GroupDetail() {
                   key={type}
                   type="button"
                   onClick={() => handleSplitTypeChange(type)}
-                  className={`flex-1 py-2 rounded-lg text-sm font-semibold capitalize
+                  className={`flex-1 py-2 rounded-lg text-sm font-semibold
                               transition touch-manipulation select-none
                               ${newExpense.splitType === type
                                 ? "bg-white dark:bg-[#2c2c2e] shadow-sm text-emerald-600"
                                 : "text-gray-500 dark:text-gray-400"}`}
                 >
-                  {type}
+                  {t(`gd.split_${type}`)}
                 </button>
               ))}
             </div>
@@ -1393,7 +1395,7 @@ export default function GroupDetail() {
           {newExpense.splitType === "custom" && (
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-2">
-                Amount per member
+                {t("gd.amount_per_member")}
               </label>
               <div className="space-y-2">
                 {customSplits.map((split, idx) => (
@@ -1422,7 +1424,7 @@ export default function GroupDetail() {
                 ))}
               </div>
               <div className="mt-2 flex justify-between text-sm">
-                <span className="text-gray-400">Total</span>
+                <span className="text-gray-400">{t("gd.total")}</span>
                 <span className={`font-semibold ${splitsMatch ? "text-emerald-600" : "text-red-500"}`}>
                   ₹{customTotal.toFixed(2)} / ₹{parseFloat(newExpense.amount || 0).toFixed(2)}
                 </span>
@@ -1438,7 +1440,7 @@ export default function GroupDetail() {
                          text-white font-semibold rounded-xl transition
                          touch-manipulation select-none"
             >
-              Add Expense
+              {t("gd.add_expense_btn")}
             </button>
             <button
               type="button"
@@ -1453,7 +1455,7 @@ export default function GroupDetail() {
                          text-gray-700 dark:text-gray-200 font-semibold rounded-xl
                          transition touch-manipulation select-none"
             >
-              Cancel
+              {t("gd.cancel")}
             </button>
           </div>
         </form>
@@ -1463,7 +1465,7 @@ export default function GroupDetail() {
       <BottomSheet
         open={!!memberProfile}
         onClose={() => setMemberProfile(null)}
-        title="Member Profile"
+        title={t("gd.member_profile")}
       >
         {memberProfile?.loading ? (
           <div className="flex flex-col items-center gap-4 animate-pulse py-8">
@@ -1482,10 +1484,10 @@ export default function GroupDetail() {
               const dt = new Date(ts);
               const now = new Date();
               const time = dt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
-              if (dt.toDateString() === now.toDateString()) return `Today at ${time}`;
+              if (dt.toDateString() === now.toDateString()) return `${t("gd.today_at")} ${time}`;
               const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
-              if (dt.toDateString() === yesterday.toDateString()) return `Yesterday at ${time}`;
-              return `${dt.toLocaleDateString("en-IN", { day: "numeric", month: "short" })} at ${time}`;
+              if (dt.toDateString() === yesterday.toDateString()) return `${t("gd.yesterday_at")} ${time}`;
+              return `${dt.toLocaleDateString("en-IN", { day: "numeric", month: "short" })} ${time}`;
             };
 
             return (
@@ -1515,25 +1517,25 @@ export default function GroupDetail() {
                     <p className="text-sm text-emerald-600 font-medium mt-0.5">@{d.username}</p>
                   )}
                   <p className={`text-xs mt-1 ${d.isOnline ? "text-emerald-500" : "text-gray-400"}`}>
-                    {d.isOnline ? "🟢 Online" : d.lastSeen ? `Last seen ${formatLastSeen(d.lastSeen)}` : "Offline"}
+                    {d.isOnline ? t("gd.online") : d.lastSeen ? `${t("gd.last_seen")} ${formatLastSeen(d.lastSeen)}` : t("profile.offline")}
                   </p>
                 </div>
                 {d.profilePublic && d.bio && (
                   <div className="w-full bg-gray-50 dark:bg-[#3a3a3c] rounded-xl px-4 py-3">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Bio</p>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">{t("gd.bio")}</p>
                     <p className="text-sm text-gray-700 dark:text-gray-300">{d.bio}</p>
                   </div>
                 )}
                 {!d.profilePublic && (
                   <p className="text-sm text-gray-400 text-center">
-                    🔒 This member's profile is private
+                    {t("gd.private_profile")}
                   </p>
                 )}
               </div>
             );
           })()
         ) : (
-          <p className="text-center text-gray-400 text-sm py-8">Could not load profile</p>
+          <p className="text-center text-gray-400 text-sm py-8">{t("gd.could_not_load")}</p>
         )}
       </BottomSheet>
 
@@ -1541,12 +1543,12 @@ export default function GroupDetail() {
       <Dialog
         open={!!editExpense}
         onClose={() => setEditExpense(null)}
-        title="Edit Expense"
+        title={t("gd.edit_expense")}
       >
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-              Description
+              {t("gd.description")}
             </label>
             <input
               type="text"
@@ -1560,7 +1562,7 @@ export default function GroupDetail() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-              Category
+              {t("gd.category")}
             </label>
             <div className="flex flex-wrap gap-2">
               {CATEGORIES.map((cat) => (
@@ -1574,7 +1576,7 @@ export default function GroupDetail() {
                                 ? "bg-emerald-500 text-white"
                                 : "bg-gray-100 dark:bg-[#3a3a3c] text-gray-600 dark:text-gray-300"}`}
                 >
-                  {cat.icon} {cat.label}
+                  {cat.icon} {t(`cat.${cat.value}`)}
                 </button>
               ))}
             </div>
@@ -1585,14 +1587,14 @@ export default function GroupDetail() {
               className="flex-1 h-11 bg-emerald-500 active:bg-emerald-600
                          text-white font-semibold rounded-xl transition touch-manipulation"
             >
-              Save
+              {t("gd.save")}
             </button>
             <button
               onClick={() => setEditExpense(null)}
               className="flex-1 h-11 bg-gray-100 dark:bg-[#3a3a3c] text-gray-700
                          dark:text-gray-200 font-semibold rounded-xl transition touch-manipulation"
             >
-              Cancel
+              {t("gd.cancel")}
             </button>
           </div>
         </div>
@@ -1602,10 +1604,10 @@ export default function GroupDetail() {
       <Dialog
         open={!!settleModal}
         onClose={() => { setSettleModal(null); setSettleAmount(""); setError(""); }}
-        title="Settle Up"
+        title={t("gd.settle_up_title")}
       >
         <p className="text-sm text-gray-400 mb-4">
-          Max amount:{" "}
+          {t("gd.max_amount")}{" "}
           <span className="font-semibold text-gray-700 dark:text-gray-200">
             ₹{settleModal?.maxAmount.toFixed(2)}
           </span>
@@ -1623,7 +1625,7 @@ export default function GroupDetail() {
                      text-gray-900 dark:text-white placeholder-gray-400
                      focus:outline-none focus:border-emerald-500
                      focus:ring-2 focus:ring-emerald-500/20 transition mb-3"
-          placeholder="Enter amount"
+          placeholder={t("gd.enter_amount")}
         />
         {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
         <div className="flex gap-3">
@@ -1633,7 +1635,7 @@ export default function GroupDetail() {
                        text-white font-semibold rounded-xl transition
                        touch-manipulation select-none"
           >
-            Send Request
+            {t("gd.send_request")}
           </button>
           <button
             onClick={() => { setSettleModal(null); setSettleAmount(""); setError(""); }}
@@ -1641,7 +1643,7 @@ export default function GroupDetail() {
                        text-gray-700 font-semibold rounded-xl transition
                        touch-manipulation select-none"
           >
-            Cancel
+            {t("gd.cancel")}
           </button>
         </div>
       </Dialog>

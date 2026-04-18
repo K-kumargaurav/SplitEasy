@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import { useLanguage } from "../context/LanguageContext";
 import { GoogleLogin } from "@react-oauth/google";
 import api from "../utils/api";
 
@@ -81,6 +82,7 @@ export default function Login() {
 
   const { login }  = useAuth();
   const navigate   = useNavigate();
+  const { t }      = useLanguage();
 
   const handleChange = (field) => (e) =>
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
@@ -130,7 +132,7 @@ export default function Login() {
           SplitEasy
         </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Split bills, not friendships
+          {t("login.tagline")}
         </p>
       </div>
 
@@ -148,7 +150,7 @@ export default function Login() {
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <InputField
-            label="Email"
+            label={t("login.email")}
             type="email"
             placeholder="you@example.com"
             value={form.email}
@@ -161,7 +163,7 @@ export default function Login() {
           {/* Password with show/hide toggle */}
           <div>
             <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-              Password
+              {t("login.password")}
             </label>
             <div className="relative">
               <input
@@ -198,13 +200,13 @@ export default function Login() {
                        disabled:opacity-50 disabled:cursor-not-allowed select-none
                        touch-manipulation"
           >
-            {loading ? "Signing in…" : "Sign In"}
+            {loading ? t("login.signing_in") : t("login.sign_in")}
           </button>
 
           {/* Divider */}
           <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-gray-200 dark:bg-[#3a3a3c]" />
-            <span className="text-xs text-gray-400 select-none">or</span>
+            <span className="text-xs text-gray-400 select-none">{t("login.or")}</span>
             <div className="flex-1 h-px bg-gray-200 dark:bg-[#3a3a3c]" />
           </div>
 
@@ -224,9 +226,9 @@ export default function Login() {
 
         <div className="border-t border-gray-100 dark:border-[#3a3a3c] px-5 py-4
                         text-center text-sm text-gray-500 dark:text-gray-400">
-          Don't have an account?{" "}
+          {t("login.no_account")}{" "}
           <Link to="/register" className="text-emerald-600 font-semibold">
-            Register
+            {t("login.register")}
           </Link>
         </div>
       </div>

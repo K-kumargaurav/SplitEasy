@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { LanguageProvider } from './context/LanguageContext';
 import { Toaster } from "react-hot-toast";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 
@@ -41,6 +42,7 @@ function AppRoutes() {
 export default function App() {
   return (
     <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ""}>
+      <LanguageProvider>
       <ThemeProvider>
         <AuthProvider>
           <BrowserRouter>
@@ -49,6 +51,7 @@ export default function App() {
           </BrowserRouter>
         </AuthProvider>
       </ThemeProvider>
+      </LanguageProvider>
     </GoogleOAuthProvider>
   );
 }
