@@ -101,21 +101,44 @@ export default function CalcInput({ value, onChange, placeholder = "0.00" }) {
 
   return (
     <>
-      {/* Trigger — looks like the rest of the form inputs */}
-      <button
-        type="button"
-        onClick={handleOpen}
-        className="w-full h-12 bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
-                   dark:border-[#48484a] rounded-xl px-4 text-base text-left
-                   text-gray-900 dark:text-white focus:outline-none focus:border-emerald-500
-                   focus:ring-2 focus:ring-emerald-500/20 transition"
-      >
-        {value ? (
-          <span>₹ {value}</span>
-        ) : (
-          <span className="text-gray-400">{placeholder}</span>
-        )}
-      </button>
+      {/* Input row: text field + calculator icon button */}
+      <div className="flex items-center gap-2">
+        <input
+          type="number"
+          inputMode="decimal"
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="flex-1 h-12 bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
+                     dark:border-[#48484a] rounded-xl px-4 text-base
+                     text-gray-900 dark:text-white placeholder-gray-400
+                     focus:outline-none focus:border-emerald-500
+                     focus:ring-2 focus:ring-emerald-500/20 transition"
+        />
+        <button
+          type="button"
+          onClick={handleOpen}
+          title="Open calculator"
+          className="h-12 w-12 shrink-0 flex items-center justify-center
+                     bg-gray-100 dark:bg-[#3a3a3c] border border-gray-200
+                     dark:border-[#48484a] rounded-xl text-gray-500 dark:text-gray-400
+                     active:bg-gray-200 dark:active:bg-[#48484a] transition
+                     touch-manipulation select-none"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               strokeWidth={1.8} className="w-5 h-5">
+            <rect x="4" y="2" width="16" height="20" rx="2"/>
+            <line x1="8"  y1="7"  x2="16" y2="7"/>
+            <line x1="8"  y1="11" x2="10" y2="11"/>
+            <line x1="12" y1="11" x2="14" y2="11"/>
+            <line x1="16" y1="11" x2="16" y2="11" strokeLinecap="round" strokeWidth={2}/>
+            <line x1="8"  y1="15" x2="10" y2="15"/>
+            <line x1="12" y1="15" x2="14" y2="15"/>
+            <line x1="16" y1="15" x2="16" y2="17" strokeLinecap="round"/>
+            <line x1="14" y1="16" x2="18" y2="16" strokeLinecap="round"/>
+          </svg>
+        </button>
+      </div>
 
       {/* Calculator overlay */}
       {open && (
@@ -133,7 +156,7 @@ export default function CalcInput({ value, onChange, placeholder = "0.00" }) {
 
             {/* Display */}
             <div className="px-2 pb-4 border-b border-gray-100 dark:border-gray-800 mb-3 text-right">
-              <p className="text-sm text-gray-400 font-mono min-h-[1.25rem]">
+              <p className="text-sm text-gray-400 font-mono min-h-5">
                 {hasOp ? expr : ""}
               </p>
               <p className="text-4xl font-bold text-gray-900 dark:text-white font-mono mt-1 leading-none">
@@ -158,10 +181,8 @@ export default function CalcInput({ value, onChange, placeholder = "0.00" }) {
                     press(k);
                   }}
                   style={{
-                    gridColumn:
-                      colSpan > 1 ? `${col} / span ${colSpan}` : col,
-                    gridRow:
-                      rowSpan > 1 ? `${row} / span ${rowSpan}` : row,
+                    gridColumn: colSpan > 1 ? `${col} / span ${colSpan}` : col,
+                    gridRow:    rowSpan > 1 ? `${row} / span ${rowSpan}` : row,
                   }}
                   className={`rounded-2xl select-none active:scale-95 transition-transform ${btnClass(k)}`}
                 >
