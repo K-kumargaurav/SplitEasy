@@ -2026,39 +2026,69 @@ export default function GroupDetail() {
           placeholder={t("gd.enter_amount")}
         />
 
-        {/* ── UPI pay button ── */}
-        {settleModal?.upiId && (
-          <a
-            href={`upi://pay?pa=${settleModal.upiId.trim()}&pn=${encodeURIComponent(settleModal.payeeName)}&am=${parseFloat(settleAmount || 0).toFixed(2)}&tn=${encodeURIComponent("SplitEasy settlement")}&cu=INR`}
-            onClick={() => setUpiPaid(true)}
-            className="flex items-center justify-center gap-2 w-full h-12 mb-3
-                       bg-violet-500 active:bg-violet-600 text-white font-semibold
-                       rounded-xl transition touch-manipulation select-none"
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm-1 14.5v-9l7 4.5-7 4.5z"/>
-            </svg>
-            Pay ₹{parseFloat(settleAmount || 0).toFixed(2)} via UPI
-          </a>
-        )}
+        {/* ── UPI payment apps ── */}
+        {(settleModal?.upiId || settleModal?.phoneNumber) && (() => {
+          // Prefer UPI ID; fall back to phone@upi
+          const pa  = settleModal.upiId?.trim() || `${settleModal.phoneNumber.trim()}@upi`;
+          const amt = parseFloat(settleAmount || 0).toFixed(2);
+          const pn  = encodeURIComponent(settleModal.payeeName);
+          const tn  = encodeURIComponent("SplitEasy settlement");
 
-        {/* ── Pay via Mobile Number ── */}
-        {settleModal?.phoneNumber && (
-          <a
-            href={`upi://pay?pa=${settleModal.phoneNumber.trim()}@upi&pn=${encodeURIComponent(settleModal.payeeName)}&am=${parseFloat(settleAmount || 0).toFixed(2)}&tn=${encodeURIComponent("SplitEasy settlement")}&cu=INR`}
-            onClick={() => setUpiPaid(true)}
-            className="flex items-center justify-center gap-2 w-full h-12 mb-3
-                       bg-blue-500 active:bg-blue-600 text-white font-semibold
-                       rounded-xl transition touch-manipulation select-none"
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24
-                       1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17
-                       0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
-            </svg>
-            Pay ₹{parseFloat(settleAmount || 0).toFixed(2)} via Mobile Number
-          </a>
-        )}
+          // Build Android intent URL — the only reliable way from Chrome
+          const intent = (scheme, pkg) => {
+            const tr = `SE${Date.now()}`;
+            const base = `intent://upi/pay?pa=${pa}&pn=${pn}&am=${amt}&tn=${tn}&cu=INR&tr=${tr}`;
+            if (pkg) {
+              const fb = encodeURIComponent(`https://play.google.com/store/apps/details?id=${pkg}`);
+              return `${base}#Intent;scheme=${scheme};package=${pkg};S.browser_fallback_url=${fb};end;`;
+            }
+            return `${base}#Intent;scheme=upi;action=android.intent.action.VIEW;end;`;
+          };
+
+          const launch = (url) => { setUpiPaid(true); window.location.href = url; };
+
+          const APPS = [
+            { label: "GPay",    color: "bg-white border border-gray-200 dark:border-[#3a3a3c]", text: "text-gray-800 dark:text-white",
+              logo: <svg viewBox="0 0 48 48" className="w-6 h-6"><text y="36" fontSize="32">G</text></svg>,
+              url: intent("gpay",    "com.google.android.apps.nbu.paisa.user") },
+            { label: "PhonePe", color: "bg-[#5f259f]", text: "text-white",
+              logo: <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor"><circle cx="12" cy="12" r="10"/><path fill="white" d="M14.5 7h-3.8c-.9 0-1.7.8-1.7 1.7v6.6c0 .4.3.7.7.7s.7-.3.7-.7v-2.6h2c1.8 0 3.3-1.4 3.3-3.2S16.3 7 14.5 7zm0 4.9h-2V8.4h2c1 0 1.9.8 1.9 1.8s-.9 1.7-1.9 1.7z"/></svg>,
+              url: intent("phonepe", "com.phonepe.app") },
+            { label: "Paytm",   color: "bg-[#002970]", text: "text-white",
+              logo: <svg viewBox="0 0 24 24" className="w-5 h-5" fill="white"><rect width="24" height="24" rx="4" fill="#002970"/><text y="17" x="3" fontSize="10" fill="white" fontWeight="bold">Pay</text></svg>,
+              url: intent("paytmmp", "net.one97.android") },
+            { label: "BHIM",    color: "bg-[#00529B]", text: "text-white",
+              logo: <svg viewBox="0 0 24 24" className="w-5 h-5" fill="white"><text y="17" x="1" fontSize="9" fontWeight="bold">BHIM</text></svg>,
+              url: intent("upi",    "in.org.npci.upiapp") },
+          ];
+
+          return (
+            <div className="mb-3">
+              <p className="text-xs text-gray-400 dark:text-gray-500 text-center mb-2">
+                Pay ₹{amt} via — choose app
+              </p>
+              <div className="grid grid-cols-4 gap-2">
+                {APPS.map((app) => (
+                  <button
+                    key={app.label}
+                    type="button"
+                    onClick={() => launch(app.url)}
+                    className={`flex flex-col items-center justify-center gap-1 h-16 rounded-2xl
+                                ${app.color} ${app.text} text-[11px] font-semibold
+                                active:scale-95 transition-transform touch-manipulation select-none`}
+                  >
+                    {app.logo}
+                    {app.label}
+                  </button>
+                ))}
+              </div>
+              {/* Show which VPA will be used */}
+              <p className="text-[11px] text-gray-400 text-center mt-1.5">
+                To: <span className="font-mono">{pa}</span>
+              </p>
+            </div>
+          );
+        })()}
 
         {/* ── Post-UPI: share proof ── */}
         {upiPaid && (
