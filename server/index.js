@@ -27,6 +27,10 @@ app.use(
         process.env.CLIENT_URL,
         "http://localhost:5173",
         "http://localhost:5174",
+        // Capacitor Android WebView origins
+        "https://localhost",
+        "http://localhost",
+        "capacitor://localhost",
       ];
       if (!origin || allowed.includes(origin)) {
         callback(null, true);
