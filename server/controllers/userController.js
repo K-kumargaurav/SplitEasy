@@ -8,21 +8,26 @@ const sendEmail = require("../utils/sendEmail");
 
 // @GET /api/users/profile
 const getProfile = async (req, res) => {
-  const user = await User.findById(req.user._id);
-  res.json({
-    _id: user._id,
-    name: user.name,
-    email: user.email,
-    username: user.username,
-    bio: user.bio,
-    profilePhoto: user.profilePhoto,
-    isOnline: user.isOnline,
-    lastSeen: user.lastSeen,
-    country: user.country || "India",
-    profilePublic: user.profilePublic ?? false,
-    upiId: user.upiId || "",
-    friends: user.friends,
-  });
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      username: user.username,
+      bio: user.bio,
+      profilePhoto: user.profilePhoto,
+      isOnline: user.isOnline,
+      lastSeen: user.lastSeen,
+      country: user.country || "India",
+      profilePublic: user.profilePublic ?? false,
+      upiId: user.upiId || "",
+      friends: user.friends,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
 };
 
 // @GET /api/users/:id — public profile (respects profilePublic)
@@ -170,7 +175,7 @@ const sendFriendRequest = async (req, res) => {
     // Can't send request to yourself
     if (req.params.id == req.user._id.toString()) {
       return res
-        .status(401)
+        .status(400)
         .json({ message: "Cannot send request to yourself" });
     }
 

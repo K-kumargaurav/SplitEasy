@@ -73,6 +73,7 @@ const register = async (req, res) => {
       username,
       isOnline: true,
       country: country || "India",
+      emailVerified: true,
     });
 
     res.status(201).json({
@@ -207,6 +208,12 @@ const sendRegisterOtp = async (req, res) => {
         emailVerified: false, emailOtp: otp, emailOtpExpiry: otpExpiry,
       });
     } else {
+      // Resend — refresh OTP and update form data in case user corrected it
+      const salt = await bcrypt.genSalt(12);
+      const hashedPassword = await bcrypt.hash(password, salt);
+      user.name = name.trim();
+      user.password = hashedPassword;
+      user.country = country || "India";
       user.emailOtp = otp;
       user.emailOtpExpiry = otpExpiry;
       await user.save();
