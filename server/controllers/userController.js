@@ -270,11 +270,11 @@ const searchUsers = async (req, res) => {
 // @GET /api/users/notifications
 const getNotifications = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
-    // Return newest first
-    const notifications = [...user.notifications]
-      .sort((a, b) => b.createdAt - a.createdAt)
-      .slice(0, 20); // max 20
+    const Notification = require("../models/Notification");
+    const notifications = await Notification.find({ userId: req.user._id })
+      .sort({ createdAt: -1 })
+      .limit(30)
+      .lean();
     res.json(notifications);
   } catch (error) {
     res.status(500).json({ message: "Server error" });
@@ -284,9 +284,11 @@ const getNotifications = async (req, res) => {
 // @PUT /api/users/notifications/read
 const markNotificationsRead = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
-    user.notifications.forEach((n) => (n.read = true));
-    await user.save();
+    const Notification = require("../models/Notification");
+    await Notification.updateMany(
+      { userId: req.user._id, read: false },
+      { $set: { read: true } },
+    );
     res.json({ message: "Notifications marked as read" });
   } catch (error) {
     res.status(500).json({ message: "Server error" });

@@ -196,6 +196,11 @@ export default function GroupDetail() {
   const [editGroupForm,    setEditGroupForm]    = useState({ name: "", description: "" });
   const [editGroupSaving,  setEditGroupSaving]  = useState(false);
   const [deletingGroup,    setDeletingGroup]    = useState(false);
+
+  /* ── Expense pagination ── */
+  const [expensesCursor,   setExpensesCursor]   = useState(null);
+  const [expensesHasMore,  setExpensesHasMore]  = useState(false);
+  const [loadingMore,      setLoadingMore]      = useState(false);
   const groupMenuRef                            = useRef(null);
 
   /* ─── Auth guard ─── */
@@ -228,7 +233,12 @@ export default function GroupDetail() {
       ]);
 
       if (groupRes.status       === "fulfilled") setGroup(groupRes.value.data);
-      if (expensesRes.status    === "fulfilled") setExpenses(expensesRes.value.data);
+      if (expensesRes.status    === "fulfilled") {
+        const { expenses, hasMore, nextCursor } = expensesRes.value.data;
+        setExpenses(expenses);
+        setExpensesHasMore(hasMore);
+        setExpensesCursor(nextCursor);
+      }
       if (balancesRes.status    === "fulfilled") setBalances(balancesRes.value.data);
       if (settlementsRes.status === "fulfilled") {
         const all = settlementsRes.value.data;
@@ -251,6 +261,21 @@ export default function GroupDetail() {
       setError("Failed to load data");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMoreExpenses = async () => {
+    if (!expensesCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const { data } = await api.get(`/groups/${id}/expenses?cursor=${expensesCursor}`);
+      setExpenses((prev) => [...prev, ...data.expenses]);
+      setExpensesHasMore(data.hasMore);
+      setExpensesCursor(data.nextCursor);
+    } catch {
+      // silently fail — user can retry
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -1059,6 +1084,7 @@ export default function GroupDetail() {
                 <p className="text-gray-400 text-sm mt-1">{t("gd.no_expenses_sub")}</p>
               </div>
             ) : (
+              <>
               <ListGroup>
                 {expenses.map((expense) => (
                   <div key={expense._id} className="px-4 py-3.5">
@@ -1232,6 +1258,22 @@ export default function GroupDetail() {
                   </div>
                 ))}
               </ListGroup>
+
+              {/* Load More */}
+              {expensesHasMore && (
+                <button
+                  onClick={loadMoreExpenses}
+                  disabled={loadingMore}
+                  className="w-full py-3 text-sm font-semibold text-emerald-600
+                             dark:text-emerald-400 bg-white dark:bg-[#2c2c2e]
+                             rounded-2xl shadow-sm border border-gray-100
+                             dark:border-[#3a3a3c] touch-manipulation
+                             disabled:opacity-50 transition"
+                >
+                  {loadingMore ? "Loading…" : "Load more expenses"}
+                </button>
+              )}
+              </>
             )}
           </>
         )}

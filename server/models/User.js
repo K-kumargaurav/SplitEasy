@@ -88,4 +88,9 @@ const userSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+// Text index for fast username + name search
+userSchema.index({ username: "text", name: "text" });
+// Compound index for name prefix queries
+userSchema.index({ name: 1 });
+
 module.exports = mongoose.model("User", userSchema);

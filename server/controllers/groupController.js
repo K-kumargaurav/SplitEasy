@@ -1,5 +1,6 @@
 const Group         = require("../models/Group");
 const Expense       = require("../models/Expense");
+const { refreshBalanceSnapshot } = require("../utils/balanceUtils");
 const Settlement    = require("../models/Settlement");
 const User          = require("../models/User");
 const PendingAction = require("../models/PendingAction");
@@ -148,6 +149,9 @@ const addExpense = async (req, res) => {
       s.share = s.share / 100;
     });
 
+    // Invalidate balance snapshot fire-and-forget
+    refreshBalanceSnapshot(req.params.id).catch(() => {});
+
     res.status(201).json({
       message: "Expense added successfully",
       expense,
@@ -157,34 +161,36 @@ const addExpense = async (req, res) => {
   }
 };
 
-// @GET /api/groups/:id/expenses
+// @GET /api/groups/:id/expenses?cursor=<lastId>&limit=20
 const getGroupExpenses = async (req, res) => {
   try {
-    const group = await Group.findById(req.params.id).select("members");
-
-    if (!group) {
-      return res.status(404).json({ message: "Group not found" });
-    }
-
-    if (!group.members.some((m) => m.toString() === req.user._id.toString())) {
+    const group = await Group.findById(req.params.id).select("members").lean();
+    if (!group) return res.status(404).json({ message: "Group not found" });
+    if (!group.members.some((m) => m.toString() === req.user._id.toString()))
       return res.status(403).json({ message: "Not a member of this group" });
-    }
 
-    const expenses = await Expense.find({ group: req.params.id })
+    const limit  = Math.min(parseInt(req.query.limit) || 20, 50);
+    const query  = { group: req.params.id };
+    if (req.query.cursor) query._id = { $lt: req.query.cursor };
+
+    const expenses = await Expense.find(query)
+      .sort({ _id: -1 })
+      .limit(limit + 1)
       .populate("paidBy", "name email")
       .populate("splitBetween.user", "name email")
       .populate("comments.user", "name")
       .lean();
 
+    const hasMore    = expenses.length > limit;
+    if (hasMore) expenses.pop();
+    const nextCursor = hasMore ? expenses[expenses.length - 1]._id : null;
+
     expenses.forEach((exp) => {
       exp.amount = exp.amount / 100;
-
-      exp.splitBetween.forEach((s) => {
-        s.share = s.share / 100;
-      });
+      exp.splitBetween.forEach((s) => { s.share = s.share / 100; });
     });
 
-    res.json(expenses);
+    res.json({ expenses, hasMore, nextCursor });
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }
@@ -200,6 +206,7 @@ const deleteExpense = async (req, res) => {
     if (expense.paidBy.toString() !== req.user._id.toString())
       return res.status(403).json({ message: "Only the payer can delete this expense" });
     await expense.deleteOne();
+    refreshBalanceSnapshot(req.params.id).catch(() => {});
     res.json({ message: "Expense deleted" });
   } catch (error) {
     res.status(500).json({ message: "Server error" });

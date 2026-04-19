@@ -1,92 +1,25 @@
-const Expense = require("../models/Expense");
-const Settlement = require("../models/Settlement");
-const Group = require("../models/Group");
-const sendNotification = require("../utils/sendNotification");
+const Expense              = require("../models/Expense");
+const Settlement           = require("../models/Settlement");
+const Group                = require("../models/Group");
+const BalanceSnapshot      = require("../models/BalanceSnapshot");
+const sendNotification     = require("../utils/sendNotification");
+const { refreshBalanceSnapshot } = require("../utils/balanceUtils");
 
-// @GET /api/groups/:id/balances
+// @GET /api/groups/:id/balances  — O(1) snapshot read
 const getBalances = async (req, res) => {
   try {
-    const group = await Group.findById(req.params.id);
-
-    if (!group) {
-      return res.status(404).json({ message: "Group not found" });
-    }
-
-    if (!group.members.some(m => m.toString() === req.user._id.toString())) {
+    const group = await Group.findById(req.params.id).select("members").lean();
+    if (!group) return res.status(404).json({ message: "Group not found" });
+    if (!group.members.some((m) => m.toString() === req.user._id.toString()))
       return res.status(403).json({ message: "Not a member of this group" });
-    }
 
-    const [expenses, settlements] = await Promise.all([
-      Expense.find({ group: req.params.id }).lean(),
-      Settlement.find({ group: req.params.id, status: "accepted" }).lean(),
-    ]);
+    const snapshot = await BalanceSnapshot.findOne({ groupId: req.params.id }).lean();
+    if (snapshot) return res.json(snapshot.balances);
 
-    const balances = {};
-
-    expenses.forEach(expense => {
-      const paidBy = expense.paidBy.toString();
-
-      expense.splitBetween.forEach(split => {
-        const owedBy = split.user.toString();
-
-        if (owedBy === paidBy) return;
-
-        if (!balances[owedBy]) balances[owedBy] = {};
-        if (!balances[owedBy][paidBy]) balances[owedBy][paidBy] = 0;
-
-        if (!split.paid) {
-          balances[owedBy][paidBy] += split.share;
-        }
-      });
-    });
-
-    // Subtract accepted settlements (handles partial payments)
-    settlements.forEach(s => {
-      const paidBy = s.paidBy.toString();
-      const paidTo = s.paidTo.toString();
-      if (balances[paidBy] && balances[paidBy][paidTo] !== undefined) {
-        balances[paidBy][paidTo] = Math.max(0, balances[paidBy][paidTo] - s.amount);
-      }
-    });
-
-    // Compute net balance per person, then simplify (minimize number of transactions)
-    const net = {};
-    for (const debtor in balances) {
-      for (const creditor in balances[debtor]) {
-        const amount = balances[debtor][creditor];
-        if (amount <= 0) continue;
-        net[debtor]   = (net[debtor]   || 0) - amount;
-        net[creditor] = (net[creditor] || 0) + amount;
-      }
-    }
-
-    const creditors = Object.entries(net)
-      .filter(([, v]) => v >  0.5)
-      .map(([id, amt]) => ({ id, amt }))
-      .sort((a, b) => b.amt - a.amt);
-
-    const debtors = Object.entries(net)
-      .filter(([, v]) => v < -0.5)
-      .map(([id, amt]) => ({ id, amt: -amt }))
-      .sort((a, b) => b.amt - a.amt);
-
-    const result = [];
-    let i = 0, j = 0;
-    while (i < debtors.length && j < creditors.length) {
-      const transfer = Math.min(debtors[i].amt, creditors[j].amt);
-      result.push({
-        owedBy: debtors[i].id,
-        owedTo: creditors[j].id,
-        amount: transfer / 100,
-      });
-      debtors[i].amt   -= transfer;
-      creditors[j].amt -= transfer;
-      if (debtors[i].amt   < 0.5) i++;
-      if (creditors[j].amt < 0.5) j++;
-    }
-
-    res.json(result);
-
+    // First-time: compute, persist, return
+    await refreshBalanceSnapshot(req.params.id);
+    const fresh = await BalanceSnapshot.findOne({ groupId: req.params.id }).lean();
+    res.json(fresh?.balances ?? []);
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }
@@ -187,6 +120,11 @@ const respondToSettlement = async (req, res) => {
         if (dirty) await expense.save();
         if (remaining <= 0) break;
       }
+    }
+
+    // Invalidate snapshot so next read is fresh
+    if (status === "accepted") {
+      refreshBalanceSnapshot(settlement.group).catch(() => {});
     }
 
     await sendNotification(

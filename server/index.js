@@ -140,6 +140,25 @@ mongoose
     const User = require("./models/User");
     await User.updateMany({ country: { $exists: false } }, { $set: { country: "India" } });
 
+    /* Migrate embedded notifications → Notification collection */
+    const Notification = require("./models/Notification");
+    const usersWithNotifs = await User.find({
+      "notifications.0": { $exists: true },
+    }).select("_id notifications");
+    for (const u of usersWithNotifs) {
+      const docs = u.notifications.map((n) => ({
+        userId: u._id,
+        message: n.message,
+        read: n.read,
+        createdAt: n.createdAt || new Date(),
+      }));
+      await Notification.insertMany(docs, { ordered: false }).catch(() => {});
+      await User.updateOne({ _id: u._id }, { $set: { notifications: [] } });
+    }
+    if (usersWithNotifs.length) {
+      console.log(`Migrated notifications for ${usersWithNotifs.length} user(s)`);
+    }
+
     /* Backfill missing usernames */
     const usersWithoutUsername = await User.find({ username: { $exists: false } }).select("_id name");
     for (const u of usersWithoutUsername) {
