@@ -5,6 +5,7 @@ import { useTheme } from "../context/ThemeContext";
 import { useLanguage } from "../context/LanguageContext";
 import api from "../utils/api";
 import MemberSearch from "../components/MemberSearch";
+import CalcInput from "../components/CalcInput";
 import toast from "react-hot-toast";
 
 /* ─────────────────────────────────────────
@@ -1484,21 +1485,9 @@ export default function GroupDetail() {
             <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
               {t("gd.amount")}
             </label>
-            <input
-              type="number"
-              min="1"
-              max="1000000"
-              step="0.01"
-              inputMode="decimal"
-              placeholder="0.00"
+            <CalcInput
               value={newExpense.amount}
-              onChange={(e) => setNewExpense((p) => ({ ...p, amount: e.target.value }))}
-              className="w-full h-12 bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
-                         dark:border-[#48484a] rounded-xl px-4 text-base
-                         text-gray-900 dark:text-white placeholder-gray-400
-                         focus:outline-none focus:border-emerald-500
-                         focus:ring-2 focus:ring-emerald-500/20 transition"
-              required
+              onChange={(val) => setNewExpense((p) => ({ ...p, amount: val }))}
             />
           </div>
 
