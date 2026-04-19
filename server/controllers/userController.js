@@ -346,7 +346,7 @@ const getUserDebts = async (req, res) => {
             if (owedBy === paidBy) return;
             if (!balances[owedBy]) balances[owedBy] = {};
             if (!balances[owedBy][paidBy]) balances[owedBy][paidBy] = 0;
-            if (!split.paid) balances[owedBy][paidBy] += split.share;
+            balances[owedBy][paidBy] += split.share;
           });
         });
 

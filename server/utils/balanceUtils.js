@@ -14,7 +14,7 @@ const computeBalances = async (groupId) => {
     const paidBy = expense.paidBy.toString();
     expense.splitBetween.forEach((split) => {
       const owedBy = split.user.toString();
-      if (owedBy === paidBy || split.paid) return;
+      if (owedBy === paidBy) return;
       if (!raw[owedBy])         raw[owedBy]         = {};
       if (!raw[owedBy][paidBy]) raw[owedBy][paidBy] = 0;
       raw[owedBy][paidBy] += split.share;
