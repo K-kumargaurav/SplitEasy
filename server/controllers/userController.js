@@ -20,6 +20,7 @@ const getProfile = async (req, res) => {
     lastSeen: user.lastSeen,
     country: user.country || "India",
     profilePublic: user.profilePublic ?? false,
+    upiId: user.upiId || "",
     friends: user.friends,
   });
 };
