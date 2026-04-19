@@ -778,7 +778,7 @@ export default function Dashboard() {
             {debts.map((debt, i) => (
               <button
                 key={i}
-                onClick={() => navigate(`/groups/${debt.groupId}`)}
+                onClick={() => navigate(`/groups/${debt.groupId}?tab=balances`)}
                 className="w-full flex items-center gap-3 px-4 py-3.5
                            active:bg-gray-50 transition text-left
                            touch-manipulation select-none"

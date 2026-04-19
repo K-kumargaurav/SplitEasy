@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { useLanguage } from "../context/LanguageContext";
@@ -151,7 +151,8 @@ export default function GroupDetail() {
 
   /* ── UI state ── */
   const [loading,         setLoading]         = useState(true);
-  const [activeTab,       setActiveTab]       = useState("expenses");
+  const [searchParams]                        = useSearchParams();
+  const [activeTab,       setActiveTab]       = useState(searchParams.get("tab") || "expenses");
   const [error,           setError]           = useState("");
   const [inviteSuccess,   setInviteSuccess]   = useState("");
   const [showAddMember,   setShowAddMember]   = useState(false);
@@ -1126,21 +1127,36 @@ export default function GroupDetail() {
           );
         })()}
 
-        {/* ── Tab switcher ── */}
-        <div className="flex bg-gray-200 dark:bg-[#3a3a3c] rounded-2xl p-1">
-          {["expenses", "balances", "activity"].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => { setActiveTab(tab); setError(""); }}
-              className={`flex-1 py-2.5 rounded-xl text-sm font-semibold
-                          transition-all touch-manipulation select-none
-                          ${activeTab === tab
-                            ? "bg-white dark:bg-[#2c2c2e] shadow-sm text-emerald-600"
-                            : "text-gray-500 dark:text-gray-400"}`}
-            >
-              {t(`gd.tab_${tab}`)}
-            </button>
-          ))}
+        {/* ── Tab switcher + Invite pill ── */}
+        <div className="flex items-center gap-2">
+          <div className="flex flex-1 bg-gray-200 dark:bg-[#3a3a3c] rounded-2xl p-1">
+            {["expenses", "balances", "activity"].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => { setActiveTab(tab); setError(""); }}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-semibold
+                            transition-all touch-manipulation select-none
+                            ${activeTab === tab
+                              ? "bg-white dark:bg-[#2c2c2e] shadow-sm text-emerald-600"
+                              : "text-gray-500 dark:text-gray-400"}`}
+              >
+                {t(`gd.tab_${tab}`)}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setShowAddMember((v) => !v)}
+            className={`h-10 px-3.5 rounded-2xl text-sm font-semibold
+                        transition-all touch-manipulation select-none flex items-center gap-1
+                        ${showAddMember
+                          ? "bg-emerald-500 text-white"
+                          : "bg-gray-200 dark:bg-[#3a3a3c] text-gray-500 dark:text-gray-400"}`}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/>
+            </svg>
+            <span>Invite</span>
+          </button>
         </div>
 
         {/* ════════════════ EXPENSES TAB ════════════════ */}
