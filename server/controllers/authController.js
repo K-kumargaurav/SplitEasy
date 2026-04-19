@@ -328,7 +328,68 @@ const verifyLoginOtp = async (req, res) => {
   }
 };
 
+// @POST /api/auth/forgot-password
+const forgotPassword = async (req, res) => {
+  try {
+    const email = (req.body.email || "").toLowerCase().trim();
+    if (!email) return res.status(400).json({ message: "Email is required" });
+
+    const user = await User.findOne({ email });
+    // Generic response to prevent user enumeration
+    if (!user || !user.password) {
+      return res.json({ message: "If that email exists, an OTP has been sent" });
+    }
+
+    const otp = String(crypto.randomInt(100000, 999999));
+    user.passwordOtp = otp;
+    user.passwordOtpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+
+    await sendEmail({
+      to: email,
+      subject: "SplitEasy — Password Reset OTP",
+      html: otpEmailHtml(otp, "Your one-time code to reset your password:"),
+    });
+
+    res.json({ message: "If that email exists, an OTP has been sent" });
+  } catch (err) {
+    console.error("forgotPassword:", err);
+    res.status(500).json({ message: "Failed to send OTP" });
+  }
+};
+
+// @POST /api/auth/reset-password
+const resetPassword = async (req, res) => {
+  try {
+    const { email: rawEmail, otp, newPassword } = req.body;
+    if (!rawEmail || !otp || !newPassword || newPassword.length < 8)
+      return res.status(400).json({ message: "Email, OTP, and new password (min 8 chars) are required" });
+
+    const email = rawEmail.toLowerCase().trim();
+    const user = await User.findOne({ email });
+    if (!user)
+      return res.status(400).json({ message: "Invalid OTP" });
+
+    if (!user.passwordOtp || user.passwordOtp !== String(otp).trim())
+      return res.status(400).json({ message: "Invalid OTP" });
+    if (!user.passwordOtpExpiry || user.passwordOtpExpiry < new Date())
+      return res.status(400).json({ message: "OTP has expired. Please request a new one." });
+
+    const salt = await bcrypt.genSalt(12);
+    user.password = await bcrypt.hash(newPassword, salt);
+    user.passwordOtp = undefined;
+    user.passwordOtpExpiry = undefined;
+    await user.save();
+
+    res.json({ message: "Password reset successfully" });
+  } catch (err) {
+    console.error("resetPassword:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 module.exports = {
   register, login, googleAuth, registerValidation, loginValidation,
   sendRegisterOtp, verifyRegisterOtp, sendLoginOtp, verifyLoginOtp,
+  forgotPassword, resetPassword,
 };
