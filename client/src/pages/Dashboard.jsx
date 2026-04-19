@@ -383,7 +383,7 @@ export default function Dashboard() {
       const { data } = await api.get("/users/activity");
       setActivity(data);
     } catch (err) {
-      console.error(err);
+      toast.error("Failed to load activity");
     } finally {
       setActivityLoading(false);
     }
@@ -395,7 +395,7 @@ export default function Dashboard() {
       const { data } = await api.get("/users/debts");
       setDebts(data);
     } catch (err) {
-      console.error(err);
+      toast.error("Failed to load payments");
     } finally {
       setDebtsLoading(false);
     }
@@ -548,9 +548,12 @@ export default function Dashboard() {
     }
   };
 
+  const [creatingGroup, setCreatingGroup] = useState(false);
   const handleCreateGroup = async (e) => {
     e.preventDefault();
+    if (creatingGroup) return;
     setError("");
+    setCreatingGroup(true);
     try {
       await api.post("/groups", {
         ...newGroup,
@@ -562,6 +565,8 @@ export default function Dashboard() {
       fetchGroups();
     } catch (err) {
       setError(err.response?.data?.message || "Failed to create group");
+    } finally {
+      setCreatingGroup(false);
     }
   };
 
@@ -928,6 +933,7 @@ export default function Dashboard() {
 
     const formatLastSeen = (ts) => {
       const d = new Date(ts);
+      if (!ts || isNaN(d.getTime())) return "";
       const now = new Date();
       const isToday = d.toDateString() === now.toDateString();
       const time = d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
@@ -1092,7 +1098,8 @@ export default function Dashboard() {
             {/* Visible to group members toggle */}
             <button
               type="button"
-              onClick={async () => {
+              onClick={async (e) => {
+                e.currentTarget.disabled = true;
                 const next = !(profileData?.paymentDetailsPublic ?? true);
                 setProfileData((p) => ({ ...p, paymentDetailsPublic: next }));
                 try {
@@ -1101,6 +1108,8 @@ export default function Dashboard() {
                 } catch {
                   setProfileData((p) => ({ ...p, paymentDetailsPublic: !next }));
                   toast.error("Failed to update");
+                } finally {
+                  e.currentTarget.disabled = false;
                 }
               }}
               className={`shrink-0 flex items-center gap-1.5 px-3 h-8 rounded-xl text-xs font-semibold
@@ -1716,11 +1725,12 @@ export default function Dashboard() {
           <div className="flex gap-3 pt-1">
             <button
               type="submit"
+              disabled={creatingGroup}
               className="flex-1 h-12 bg-emerald-500 active:bg-emerald-600
                          text-white font-semibold rounded-xl transition
-                         touch-manipulation select-none"
+                         touch-manipulation select-none disabled:opacity-60"
             >
-              {t("create_group.create")}
+              {creatingGroup ? "Creating…" : t("create_group.create")}
             </button>
             <button
               type="button"

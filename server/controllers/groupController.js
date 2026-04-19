@@ -1,3 +1,4 @@
+const mongoose      = require("mongoose");
 const Group         = require("../models/Group");
 const Expense       = require("../models/Expense");
 const { refreshBalanceSnapshot } = require("../utils/balanceUtils");
@@ -6,6 +7,8 @@ const User          = require("../models/User");
 const PendingAction = require("../models/PendingAction");
 const sendNotification = require("../utils/sendNotification");
 const { notifyVoters } = require("./pendingActionController");
+
+const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 
 // @POST /api/groups
 const createGroup = async (req, res) => {
@@ -54,6 +57,7 @@ const getGroups = async (req, res) => {
 // @GET /api/groups/:id
 const getGroupById = async (req, res) => {
   try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: "Invalid group ID" });
     const group = await Group.findById(req.params.id)
       .populate("members", "name email upiId phoneNumber paymentDetailsPublic")
       .populate("createdBy", "name email upiId phoneNumber paymentDetailsPublic")
@@ -79,6 +83,7 @@ const getGroupById = async (req, res) => {
 // @POST /api/groups/:id/expenses
 const addExpense = async (req, res) => {
   try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: "Invalid group ID" });
     const { description, amount, splitType = "equal", customSplits, paidById, category = "other" } = req.body;
     if (!description || typeof description !== "string" || !description.trim())
       return res.status(400).json({ message: "Description is required" });
@@ -153,7 +158,7 @@ const addExpense = async (req, res) => {
     });
 
     // Invalidate balance snapshot fire-and-forget
-    refreshBalanceSnapshot(req.params.id).catch(() => {});
+    refreshBalanceSnapshot(req.params.id).catch((e) => console.error("snapshot refresh failed:", e));
 
     res.status(201).json({
       message: "Expense added successfully",
@@ -167,6 +172,7 @@ const addExpense = async (req, res) => {
 // @GET /api/groups/:id/expenses?cursor=<lastId>&limit=20
 const getGroupExpenses = async (req, res) => {
   try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: "Invalid group ID" });
     const group = await Group.findById(req.params.id).select("members").lean();
     if (!group) return res.status(404).json({ message: "Group not found" });
     if (!group.members.some((m) => m.toString() === req.user._id.toString()))
@@ -202,6 +208,8 @@ const getGroupExpenses = async (req, res) => {
 // @DELETE /api/groups/:groupId/expenses/:expenseId
 const deleteExpense = async (req, res) => {
   try {
+    if (!isValidId(req.params.id) || !isValidId(req.params.expenseId))
+      return res.status(400).json({ message: "Invalid ID" });
     const expense = await Expense.findById(req.params.expenseId);
     if (!expense) return res.status(404).json({ message: "Expense not found" });
     if (expense.group.toString() !== req.params.id)
@@ -209,7 +217,7 @@ const deleteExpense = async (req, res) => {
     if (expense.paidBy.toString() !== req.user._id.toString())
       return res.status(403).json({ message: "Only the payer can delete this expense" });
     await expense.deleteOne();
-    refreshBalanceSnapshot(req.params.id).catch(() => {});
+    refreshBalanceSnapshot(req.params.id).catch((e) => console.error("snapshot refresh failed:", e));
     res.json({ message: "Expense deleted" });
   } catch (error) {
     res.status(500).json({ message: "Server error" });
@@ -221,6 +229,8 @@ const sendInvite = async (req, res) => {
   try {
     const { userId } = req.body;
     if (!userId) return res.status(400).json({ message: "userId is required" });
+    if (!isValidId(userId)) return res.status(400).json({ message: "Invalid userId" });
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: "Invalid group ID" });
     const group = await Group.findById(req.params.id);
 
     if (!group) {

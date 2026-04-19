@@ -1,7 +1,10 @@
+const mongoose      = require("mongoose");
 const PendingAction = require("../models/PendingAction");
 const Group         = require("../models/Group");
 const Expense       = require("../models/Expense");
 const sendNotification = require("../utils/sendNotification");
+
+const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 
 const ACTION_LABELS = {
   leave_request: "leave request",
@@ -95,6 +98,7 @@ const checkResolution = (action) => {
 // @GET /api/groups/:id/pending-actions
 const getPendingActions = async (req, res) => {
   try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: "Invalid group ID" });
     const group = await Group.findById(req.params.id).select("members");
     if (!group) return res.status(404).json({ message: "Group not found" });
     if (!group.members.some((m) => m.toString() === req.user._id.toString())) {
@@ -120,6 +124,8 @@ const getPendingActions = async (req, res) => {
 // @POST /api/groups/:id/pending-actions/:actionId/vote
 const castVote = async (req, res) => {
   try {
+    if (!isValidId(req.params.id) || !isValidId(req.params.actionId))
+      return res.status(400).json({ message: "Invalid ID" });
     const { approve } = req.body; // boolean
     if (typeof approve !== "boolean")
       return res.status(400).json({ message: "approve (boolean) is required" });

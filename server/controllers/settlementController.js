@@ -1,3 +1,4 @@
+const mongoose             = require("mongoose");
 const Expense              = require("../models/Expense");
 const Settlement           = require("../models/Settlement");
 const Group                = require("../models/Group");
@@ -5,9 +6,12 @@ const BalanceSnapshot      = require("../models/BalanceSnapshot");
 const sendNotification     = require("../utils/sendNotification");
 const { refreshBalanceSnapshot } = require("../utils/balanceUtils");
 
+const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
+
 // @GET /api/groups/:id/balances  — O(1) snapshot read
 const getBalances = async (req, res) => {
   try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: "Invalid group ID" });
     const group = await Group.findById(req.params.id).select("members").lean();
     if (!group) return res.status(404).json({ message: "Group not found" });
     if (!group.members.some((m) => m.toString() === req.user._id.toString()))
@@ -29,9 +33,11 @@ const getBalances = async (req, res) => {
 //CREATE REQUEST ONLY
 const settleUp = async (req, res) => {
   try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: "Invalid group ID" });
     const { paidToId, amount } = req.body;
 
     if (!paidToId || !amount || isNaN(amount) || Number(amount) <= 0)
+
       return res.status(400).json({ message: "paidToId and a positive amount are required" });
     if (paidToId === req.user._id.toString())
       return res.status(400).json({ message: "You cannot settle with yourself" });
@@ -82,6 +88,7 @@ const settleUp = async (req, res) => {
 // CONFIRM / REJECT
 const respondToSettlement = async (req, res) => {
   try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: "Invalid settlement ID" });
     const { status } = req.body; // accepted / rejected
     if (!["accepted", "rejected"].includes(status)) {
       return res.status(400).json({ message: "Invalid status" });
@@ -179,7 +186,8 @@ const getPendingSettlements = async (req, res) => {
 // @GET /api/groups/:id/settlements
 const getSettlements = async (req, res) => {
   try {
-    const group = await Group.findById(req.params.id).select("members");
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: "Invalid group ID" });
+    const group = await Group.findById(req.params.id).select("members").lean();
 
     if (!group) {
       return res.status(404).json({ message: "Group not found" });
@@ -191,9 +199,10 @@ const getSettlements = async (req, res) => {
 
     const settlements = await Settlement.find({ group: req.params.id })
       .populate("paidBy", "name email")
-      .populate("paidTo", "name email");
+      .populate("paidTo", "name email")
+      .lean();
 
-    res.json(settlements);
+    res.json(settlements.map((s) => ({ ...s, amount: s.amount / 100 })));
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }
