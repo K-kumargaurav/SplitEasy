@@ -66,6 +66,10 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    paymentDetailsPublic: {
+      type: Boolean,
+      default: true,
+    },
     friends: [
       {
         type: mongoose.Schema.Types.ObjectId,

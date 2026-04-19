@@ -22,6 +22,7 @@ const getProfile = async (req, res) => {
       lastSeen: user.lastSeen,
       country: user.country || "India",
       profilePublic: user.profilePublic ?? false,
+      paymentDetailsPublic: user.paymentDetailsPublic ?? true,
       upiId: user.upiId || "",
       phoneNumber: user.phoneNumber || "",
       friends: user.friends,
@@ -79,8 +80,9 @@ const updateProfile = async (req, res) => {
         user.profilePhoto = profilePhoto;
     }
     if (country !== undefined) user.country = country;
-    const { profilePublic } = req.body;
-    if (profilePublic !== undefined) user.profilePublic = profilePublic;
+    const { profilePublic, paymentDetailsPublic } = req.body;
+    if (profilePublic        !== undefined) user.profilePublic        = profilePublic;
+    if (paymentDetailsPublic !== undefined) user.paymentDetailsPublic = paymentDetailsPublic;
     if (isOnline !== undefined) {
       user.isOnline = isOnline;
       if (!isOnline) user.lastSeen = new Date();
@@ -97,6 +99,7 @@ const updateProfile = async (req, res) => {
       lastSeen: user.lastSeen,
       country: user.country || "India",
       profilePublic: user.profilePublic ?? false,
+      paymentDetailsPublic: user.paymentDetailsPublic ?? true,
       upiId: user.upiId || "",
       phoneNumber: user.phoneNumber || "",
     });

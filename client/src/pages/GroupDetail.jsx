@@ -288,10 +288,14 @@ export default function GroupDetail() {
   const getMemberName  = (userId) =>
     group?.members.find((m) => m._id.toString() === userId.toString())?.name ?? userId;
 
-  const getMemberUpiId   = (userId) =>
-    group?.members.find((m) => m._id.toString() === userId.toString())?.upiId ?? "";
-  const getMemberPhone   = (userId) =>
-    group?.members.find((m) => m._id.toString() === userId.toString())?.phoneNumber ?? "";
+  const getMemberUpiId   = (userId) => {
+    const m = group?.members.find((m) => m._id.toString() === userId.toString());
+    return m?.paymentDetailsPublic !== false ? (m?.upiId ?? "") : "";
+  };
+  const getMemberPhone   = (userId) => {
+    const m = group?.members.find((m) => m._id.toString() === userId.toString());
+    return m?.paymentDetailsPublic !== false ? (m?.phoneNumber ?? "") : "";
+  };
 
   const formatDate = (ts) =>
     new Date(ts).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
