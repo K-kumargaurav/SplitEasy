@@ -100,7 +100,7 @@ const translations = {
     // GroupDetail — general
     "gd.members_count":    "members",
     "gd.members":          "Members",
-    "gd.invite":           "+ Invite",
+    "gd.invite":           "Invite",
     "gd.you_badge":        "YOU",
     "gd.leave_group":      "Leave group",
     "gd.invite_requests":  "Invite Requests",
