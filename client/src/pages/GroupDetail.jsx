@@ -173,8 +173,10 @@ export default function GroupDetail() {
 
   /* ── Settle modal ── */
   const [settleModal,  setSettleModal]  = useState(null);
-  const [upiPaid,      setUpiPaid]      = useState(false);
-  const [settleAmount, setSettleAmount] = useState("");
+  const [upiPaid,               setUpiPaid]               = useState(false);
+  const [settleAmount,          setSettleAmount]          = useState("");
+  const [screenshotUploading,   setScreenshotUploading]   = useState(false);
+  const [screenshotUrl,         setScreenshotUrl]         = useState("");
 
   /* ── Member profile sheet ── */
   const [memberProfile, setMemberProfile] = useState(null);
@@ -415,6 +417,8 @@ export default function GroupDetail() {
     });
     setSettleAmount(balance.amount.toFixed(2));
     setUpiPaid(false);
+    setScreenshotUrl("");
+    setScreenshotUploading(false);
     setError("");
   };
 
@@ -477,21 +481,37 @@ export default function GroupDetail() {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
+    setScreenshotUploading(true);
     try {
-      if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({
-          title: "UPI Payment Proof",
-          text: `Paid \u20B9${settleAmount} to ${settleModal?.payeeName} · ${group?.name}`,
-          files: [file],
-        });
-      } else {
-        const url = URL.createObjectURL(file);
-        const a = document.createElement("a");
-        a.href = url; a.download = file.name; a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
+      formData.append("folder", "spliteasy/receipts");
+      const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+      const res = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+        { method: "POST", body: formData }
+      );
+      if (!res.ok) throw new Error("Upload failed");
+      const data = await res.json();
+      setScreenshotUrl(data.secure_url);
+      toast.success("Screenshot saved!");
+      // Try Web Share API
+      try {
+        if (navigator.canShare?.({ files: [file] })) {
+          await navigator.share({
+            title: "UPI Payment Proof",
+            text: `Paid \u20B9${settleAmount} to ${settleModal?.payeeName} · ${group?.name}`,
+            files: [file],
+          });
+        }
+      } catch (shareErr) {
+        if (shareErr.name !== "AbortError") { /* sharing not available, that's fine */ }
       }
     } catch (err) {
-      if (err.name !== "AbortError") toast.error("Could not share screenshot");
+      if (err.name !== "AbortError") toast.error("Could not upload screenshot");
+    } finally {
+      setScreenshotUploading(false);
     }
   };
 
@@ -2004,7 +2024,7 @@ export default function GroupDetail() {
       {/* ─────────── Settle Up Dialog ─────────── */}
       <Dialog
         open={!!settleModal}
-        onClose={() => { setSettleModal(null); setSettleAmount(""); setError(""); setUpiPaid(false); }}
+        onClose={() => { setSettleModal(null); setSettleAmount(""); setError(""); setUpiPaid(false); setScreenshotUrl(""); setScreenshotUploading(false); }}
         title={t("gd.settle_up_title")}
       >
         <p className="text-sm text-gray-400 mb-4">
@@ -2049,7 +2069,15 @@ export default function GroupDetail() {
             return `intent://pay?${q}#Intent;scheme=upi;package=${pkg};S.browser_fallback_url=${fb};end;`;
           };
 
-          const launch = (url) => { setUpiPaid(true); window.location.href = url; };
+          // Use anchor click — more reliable than window.location.href for custom schemes
+          const launch = (url) => {
+            setUpiPaid(true);
+            const a = document.createElement("a");
+            a.href = url;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          };
 
           const APPS = [
             {
@@ -2122,22 +2150,39 @@ export default function GroupDetail() {
               </div>
 
               {isMobile ? (
-                <div className="grid grid-cols-4 gap-2">
-                  {APPS.map((app) => (
-                    <button
-                      key={app.label}
-                      type="button"
-                      onClick={() => launch(isAndroid ? androidIntent(app.pkg) : upiLink)}
-                      className={`flex flex-col items-center justify-center gap-1.5 h-[72px] rounded-2xl
-                                  ${app.bg} ${app.border} ${app.text}
-                                  text-[11px] font-semibold active:scale-95 transition-transform
-                                  touch-manipulation select-none shadow-sm`}
-                    >
-                      {app.logo}
-                      {app.label}
-                    </button>
-                  ))}
-                </div>
+                <>
+                  {/* Primary: opens OS UPI chooser — most reliable */}
+                  <a
+                    href={upiLink}
+                    onClick={() => setUpiPaid(true)}
+                    className="flex items-center justify-center gap-2 w-full h-11 mb-2
+                               bg-emerald-500 active:bg-emerald-600 text-white
+                               font-semibold text-sm rounded-xl touch-manipulation select-none shadow-sm"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+                    </svg>
+                    Pay ₹{amt} · Open UPI App
+                  </a>
+                  {/* Specific app shortcuts */}
+                  <p className="text-[10px] text-gray-400 text-center mb-1.5">or choose an app</p>
+                  <div className="grid grid-cols-4 gap-2">
+                    {APPS.map((app) => (
+                      <button
+                        key={app.label}
+                        type="button"
+                        onClick={() => launch(isAndroid ? androidIntent(app.pkg) : upiLink)}
+                        className={`flex flex-col items-center justify-center gap-1.5 h-[66px] rounded-2xl
+                                    ${app.bg} ${app.border} ${app.text}
+                                    text-[11px] font-semibold active:scale-95 transition-transform
+                                    touch-manipulation select-none shadow-sm`}
+                      >
+                        {app.logo}
+                        {app.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
               ) : (
                 <div className="flex flex-col items-center gap-2 py-1">
                   <div className="bg-white p-2 rounded-xl shadow-sm">
@@ -2156,26 +2201,55 @@ export default function GroupDetail() {
           );
         })()}
 
-                {/* ── Post-UPI: share proof ── */}
+        {/* ── Post-UPI: share proof ── */}
         {upiPaid && (
           <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200
                           dark:border-emerald-800/30 rounded-xl px-4 py-3 mb-3 space-y-2">
             <p className="text-sm text-emerald-700 dark:text-emerald-400 font-medium">
-              ✓ Payment initiated — share proof or send a settlement request below.
+              ✓ Payment initiated — attach proof then send the request.
             </p>
-            {/* Share actual UPI screenshot from gallery */}
+
+            {/* Screenshot thumbnail after upload */}
+            {screenshotUrl && (
+              <div className="flex items-center gap-3 bg-white dark:bg-[#2c2c2e] rounded-xl p-2 border border-emerald-200 dark:border-emerald-800/40">
+                <img src={screenshotUrl} alt="Payment proof" className="w-12 h-12 object-cover rounded-lg shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Screenshot saved ✓</p>
+                  <a href={screenshotUrl} target="_blank" rel="noreferrer"
+                     className="text-[11px] text-blue-500 truncate block">View full image</a>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { navigator.clipboard?.writeText(screenshotUrl); toast.success("Link copied!"); }}
+                  className="shrink-0 text-[11px] text-gray-500 dark:text-gray-400 p-1"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+
+            {/* Upload screenshot from gallery */}
             <label
               htmlFor="upi-screenshot-input"
-              className="flex items-center gap-2 w-full h-10 cursor-pointer
+              className={`flex items-center gap-2 w-full h-10 cursor-pointer
                          bg-white dark:bg-[#2c2c2e] border border-emerald-200
                          dark:border-emerald-800/40 text-emerald-700 dark:text-emerald-400
-                         text-sm font-semibold rounded-xl transition touch-manipulation select-none"
+                         text-sm font-semibold rounded-xl transition touch-manipulation select-none
+                         ${screenshotUploading ? "opacity-60 pointer-events-none" : ""}`}
             >
-              <svg className="w-4 h-4 ml-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round"
-                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-              </svg>
-              Share UPI Screenshot
+              {screenshotUploading ? (
+                <span className="ml-3 text-xs">Uploading…</span>
+              ) : (
+                <>
+                  <svg className="w-4 h-4 ml-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round"
+                          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                  </svg>
+                  {screenshotUrl ? "Replace Screenshot" : "Upload UPI Screenshot"}
+                </>
+              )}
             </label>
             <input
               id="upi-screenshot-input"
@@ -2184,7 +2258,8 @@ export default function GroupDetail() {
               className="hidden"
               onChange={shareUpiScreenshot}
             />
-            {/* Share SplitEasy-generated receipt */}
+
+            {/* Generate receipt */}
             <button
               onClick={shareReceipt}
               className="flex items-center gap-2 w-full h-10
@@ -2198,7 +2273,7 @@ export default function GroupDetail() {
                          110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0
                          00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
               </svg>
-              Share Generated Receipt
+              Download Generated Receipt
             </button>
           </div>
         )}
@@ -2215,7 +2290,7 @@ export default function GroupDetail() {
             {t("gd.send_request")}
           </button>
           <button
-            onClick={() => { setSettleModal(null); setSettleAmount(""); setError(""); setUpiPaid(false); }}
+            onClick={() => { setSettleModal(null); setSettleAmount(""); setError(""); setUpiPaid(false); setScreenshotUrl(""); setScreenshotUploading(false); }}
             className="flex-1 h-12 bg-gray-100 dark:bg-[#3a3a3c] active:bg-gray-200
                        text-gray-700 dark:text-gray-300 font-semibold rounded-xl transition
                        touch-manipulation select-none"
