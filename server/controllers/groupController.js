@@ -26,7 +26,7 @@ const createGroup = async (req, res) => {
       })),
     });
 
-    await group.populate("members", "name email");
+    await group.populate("members", "name email upiId");
 
     res.status(201).json({
       message: "Group created successfully",
@@ -41,8 +41,8 @@ const createGroup = async (req, res) => {
 const getGroups = async (req, res) => {
   try {
     const groups = await Group.find({ members: req.user._id })
-      .populate("members", "name email")
-      .populate("createdBy", "name email")
+      .populate("members", "name email upiId")
+      .populate("createdBy", "name email upiId")
       .lean();
 
     res.json(groups);
@@ -55,8 +55,8 @@ const getGroups = async (req, res) => {
 const getGroupById = async (req, res) => {
   try {
     const group = await Group.findById(req.params.id)
-      .populate("members", "name email")
-      .populate("createdBy", "name email")
+      .populate("members", "name email upiId")
+      .populate("createdBy", "name email upiId")
       .lean();
 
     if (!group) {
@@ -140,8 +140,8 @@ const addExpense = async (req, res) => {
       category,
     });
 
-    await expense.populate("paidBy", "name email");
-    await expense.populate("splitBetween.user", "name email");
+    await expense.populate("paidBy", "name email upiId");
+    await expense.populate("splitBetween.user", "name email upiId");
     await expense.populate("comments.user", "name");
 
     expense.amount = expense.amount / 100;
@@ -176,8 +176,8 @@ const getGroupExpenses = async (req, res) => {
     const expenses = await Expense.find(query)
       .sort({ _id: -1 })
       .limit(limit + 1)
-      .populate("paidBy", "name email")
-      .populate("splitBetween.user", "name email")
+      .populate("paidBy", "name email upiId")
+      .populate("splitBetween.user", "name email upiId")
       .populate("comments.user", "name")
       .lean();
 
@@ -395,7 +395,7 @@ const getPendingInvites = async (req, res) => {
       "invites.user": req.user._id,
       "invites.status": "pending",
     })
-      .populate("createdBy", "name email")
+      .populate("createdBy", "name email upiId")
       .select("name description createdBy invites");
 
     // Only return relevant invite info
@@ -516,8 +516,8 @@ const editExpense = async (req, res) => {
     if (category)    expense.category    = category;
     await expense.save();
 
-    await expense.populate("paidBy", "name email");
-    await expense.populate("splitBetween.user", "name email");
+    await expense.populate("paidBy", "name email upiId");
+    await expense.populate("splitBetween.user", "name email upiId");
     await expense.populate("comments.user", "name");
 
     expense.amount = expense.amount / 100;
@@ -591,8 +591,8 @@ const updateGroup = async (req, res) => {
     if (description !== undefined) group.description = String(description).slice(0, 300);
 
     await group.save();
-    await group.populate("members", "name email");
-    await group.populate("createdBy", "name email");
+    await group.populate("members", "name email upiId");
+    await group.populate("createdBy", "name email upiId");
 
     res.json(group);
   } catch (error) {

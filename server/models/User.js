@@ -52,6 +52,11 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "India",
     },
+    upiId: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     profilePublic: {
       type: Boolean,
       default: false,

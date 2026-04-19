@@ -236,6 +236,8 @@ export default function Dashboard() {
   const [profileLoading,     setProfileLoading]     = useState(false);
   const [editingBio,         setEditingBio]         = useState(false);
   const [bioText,            setBioText]            = useState("");
+  const [editingUpi,         setEditingUpi]         = useState(false);
+  const [upiText,            setUpiText]            = useState("");
   const [profileSaving,      setProfileSaving]      = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [pwStep,             setPwStep]             = useState("send"); // "send" | "verify"
@@ -443,6 +445,17 @@ export default function Dashboard() {
       setEditingBio(false);
       toast.success("Bio saved");
     } catch { toast.error("Failed to save bio"); }
+    finally { setProfileSaving(false); }
+  };
+
+  const handleUpiSave = async () => {
+    setProfileSaving(true);
+    try {
+      const { data } = await api.put("/users/profile", { upiId: upiText.trim() });
+      setProfileData((p) => ({ ...p, upiId: data.upiId }));
+      setEditingUpi(false);
+      toast.success("UPI ID saved");
+    } catch { toast.error("Failed to save UPI ID"); }
     finally { setProfileSaving(false); }
   };
 
@@ -1044,6 +1057,60 @@ export default function Dashboard() {
           ) : (
             <p className={`text-sm ${pd?.bio ? "text-gray-700 dark:text-gray-200" : "text-gray-400 italic"}`}>
               {pd?.bio || t("profile.no_bio")}
+            </p>
+          )}
+        </div>
+
+        {/* ── UPI ID ── */}
+        <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm px-4 py-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              UPI ID
+            </span>
+            {!editingUpi && (
+              <button
+                onClick={() => { setEditingUpi(true); setUpiText(profileData?.upiId || ""); }}
+                className="text-xs text-emerald-600 font-semibold touch-manipulation"
+              >
+                {profileData?.upiId ? "Edit" : "Add"}
+              </button>
+            )}
+          </div>
+          {editingUpi ? (
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={upiText}
+                onChange={(e) => setUpiText(e.target.value.slice(0, 50))}
+                placeholder="yourname@upi"
+                className="w-full h-10 bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
+                           dark:border-[#48484a] rounded-xl px-3 text-sm
+                           text-gray-900 dark:text-white placeholder-gray-400
+                           focus:outline-none focus:border-emerald-500
+                           focus:ring-2 focus:ring-emerald-500/20 transition"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleUpiSave}
+                  disabled={profileSaving}
+                  className="flex-1 h-10 bg-emerald-500 active:bg-emerald-600 text-white
+                             text-sm font-semibold rounded-xl transition touch-manipulation"
+                >
+                  {profileSaving ? "Saving…" : "Save"}
+                </button>
+                <button
+                  onClick={() => setEditingUpi(false)}
+                  className="flex-1 h-10 bg-gray-100 dark:bg-[#3a3a3c] text-gray-700
+                             dark:text-gray-300 text-sm font-semibold rounded-xl
+                             transition touch-manipulation"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className={`text-sm font-mono ${profileData?.upiId ? "text-gray-800 dark:text-gray-200" : "text-gray-400 italic"}`}>
+              {profileData?.upiId || "Not set — members settling with you will need this"}
             </p>
           )}
         </div>
