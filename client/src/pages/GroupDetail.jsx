@@ -7,6 +7,7 @@ import api from "../utils/api";
 import MemberSearch from "../components/MemberSearch";
 import CalcInput from "../components/CalcInput";
 import toast from "react-hot-toast";
+import { QRCodeSVG } from "qrcode.react";
 
 /* ─────────────────────────────────────────
    Constants
@@ -2029,71 +2030,133 @@ export default function GroupDetail() {
           placeholder={t("gd.enter_amount")}
         />
 
-        {/* ── UPI payment apps ── */}
+        {/* ── UPI payment section ── */}
         {(settleModal?.upiId || settleModal?.phoneNumber) && (() => {
-          // Prefer UPI ID; fall back to phone@upi
           const pa  = settleModal.upiId?.trim() || `${settleModal.phoneNumber.trim()}@upi`;
           const amt = parseFloat(settleAmount || 0).toFixed(2);
-          const pn  = encodeURIComponent(settleModal.payeeName);
-          const tn  = encodeURIComponent("SplitEasy settlement");
+          const tr  = `SE${Date.now()}`;
+          const q   = `pa=${pa}&pn=${encodeURIComponent(settleModal.payeeName)}&am=${amt}&tn=${encodeURIComponent("SplitEasy settlement")}&cu=INR&tr=${tr}`;
+          const upiLink = `upi://pay?${q}`;
 
-          // Build Android intent URL — the only reliable way from Chrome
-          const intent = (scheme, pkg) => {
-            const tr = `SE${Date.now()}`;
-            const base = `intent://upi/pay?pa=${pa}&pn=${pn}&am=${amt}&tn=${tn}&cu=INR&tr=${tr}`;
-            if (pkg) {
-              const fb = encodeURIComponent(`https://play.google.com/store/apps/details?id=${pkg}`);
-              return `${base}#Intent;scheme=${scheme};package=${pkg};S.browser_fallback_url=${fb};end;`;
-            }
-            return `${base}#Intent;scheme=upi;action=android.intent.action.VIEW;end;`;
+          const isAndroid = /Android/i.test(navigator.userAgent);
+          const isIOS     = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+          const isMobile  = isAndroid || isIOS;
+
+          // Android: intent:// is the only reliable way Chrome pre-fills amount in UPI apps
+          // scheme=upi is what all UPI apps register; package targets the specific app
+          const androidIntent = (pkg) => {
+            const fb = encodeURIComponent(`https://play.google.com/store/apps/details?id=${pkg}`);
+            return `intent://pay?${q}#Intent;scheme=upi;package=${pkg};S.browser_fallback_url=${fb};end;`;
           };
 
           const launch = (url) => { setUpiPaid(true); window.location.href = url; };
 
           const APPS = [
-            { label: "GPay",    color: "bg-white border border-gray-200 dark:border-[#3a3a3c]", text: "text-gray-800 dark:text-white",
-              logo: <svg viewBox="0 0 48 48" className="w-6 h-6"><text y="36" fontSize="32">G</text></svg>,
-              url: intent("gpay",    "com.google.android.apps.nbu.paisa.user") },
-            { label: "PhonePe", color: "bg-[#5f259f]", text: "text-white",
-              logo: <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor"><circle cx="12" cy="12" r="10"/><path fill="white" d="M14.5 7h-3.8c-.9 0-1.7.8-1.7 1.7v6.6c0 .4.3.7.7.7s.7-.3.7-.7v-2.6h2c1.8 0 3.3-1.4 3.3-3.2S16.3 7 14.5 7zm0 4.9h-2V8.4h2c1 0 1.9.8 1.9 1.8s-.9 1.7-1.9 1.7z"/></svg>,
-              url: intent("phonepe", "com.phonepe.app") },
-            { label: "Paytm",   color: "bg-[#002970]", text: "text-white",
-              logo: <svg viewBox="0 0 24 24" className="w-5 h-5" fill="white"><rect width="24" height="24" rx="4" fill="#002970"/><text y="17" x="3" fontSize="10" fill="white" fontWeight="bold">Pay</text></svg>,
-              url: intent("paytmmp", "net.one97.android") },
-            { label: "BHIM",    color: "bg-[#00529B]", text: "text-white",
-              logo: <svg viewBox="0 0 24 24" className="w-5 h-5" fill="white"><text y="17" x="1" fontSize="9" fontWeight="bold">BHIM</text></svg>,
-              url: intent("upi",    "in.org.npci.upiapp") },
+            {
+              label: "GPay",
+              pkg:   "com.google.android.apps.nbu.paisa.user",
+              bg:    "bg-white dark:bg-[#2c2c2e]",
+              border:"border border-gray-200 dark:border-[#3a3a3c]",
+              text:  "text-gray-800 dark:text-gray-100",
+              logo: (
+                <svg viewBox="0 0 24 24" className="w-7 h-7">
+                  <text x="1" y="19" fontSize="18" fontFamily="Arial" fontWeight="bold" fill="#4285F4">G</text>
+                </svg>
+              ),
+            },
+            {
+              label: "PhonePe",
+              pkg:   "com.phonepe.app",
+              bg:    "bg-[#5f259f]",
+              border:"",
+              text:  "text-white",
+              logo: (
+                <svg viewBox="0 0 24 24" className="w-6 h-6" fill="white">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm2.5 5h-3.8c-.9 0-1.7.8-1.7 1.7v6.6c0 .4.3.7.7.7s.7-.3.7-.7v-2.6h2c1.8 0 3.3-1.4 3.3-3.2S16.3 7 14.5 7zm0 4.9h-2V8.4h2c1 0 1.9.8 1.9 1.8s-.9 1.7-1.9 1.7z"/>
+                </svg>
+              ),
+            },
+            {
+              label: "Paytm",
+              pkg:   "net.one97.paytm",
+              bg:    "bg-[#00BAF2]",
+              border:"",
+              text:  "text-white",
+              logo: (
+                <svg viewBox="0 0 36 14" className="w-10 h-4">
+                  <text x="0" y="12" fontSize="12" fontFamily="Arial" fontWeight="900" fill="white">Paytm</text>
+                </svg>
+              ),
+            },
+            {
+              label: "BHIM",
+              pkg:   "in.org.npci.upiapp",
+              bg:    "bg-[#00529B]",
+              border:"",
+              text:  "text-white",
+              logo: (
+                <svg viewBox="0 0 32 14" className="w-9 h-3.5">
+                  <text x="0" y="12" fontSize="12" fontFamily="Arial" fontWeight="900" fill="white">BHIM</text>
+                </svg>
+              ),
+            },
           ];
 
           return (
-            <div className="mb-3">
-              <p className="text-xs text-gray-400 dark:text-gray-500 text-center mb-2">
-                Pay ₹{amt} via — choose app
-              </p>
-              <div className="grid grid-cols-4 gap-2">
-                {APPS.map((app) => (
-                  <button
-                    key={app.label}
-                    type="button"
-                    onClick={() => launch(app.url)}
-                    className={`flex flex-col items-center justify-center gap-1 h-16 rounded-2xl
-                                ${app.color} ${app.text} text-[11px] font-semibold
-                                active:scale-95 transition-transform touch-manipulation select-none`}
-                  >
-                    {app.logo}
-                    {app.label}
-                  </button>
-                ))}
+            <div className="mb-3 rounded-2xl bg-gray-50 dark:bg-[#1c1c1e] border border-gray-100 dark:border-[#3a3a3c] p-3">
+              {/* Header + Copy UPI ID */}
+              <div className="flex items-center justify-between mb-2.5">
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                  Pay via UPI
+                </p>
+                <button
+                  type="button"
+                  onClick={() => { navigator.clipboard?.writeText(pa); toast.success("UPI ID copied!"); }}
+                  className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium"
+                >
+                  <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                  </svg>
+                  <span className="font-mono truncate max-w-[130px]">{pa}</span>
+                </button>
               </div>
-              {/* Show which VPA will be used */}
-              <p className="text-[11px] text-gray-400 text-center mt-1.5">
-                To: <span className="font-mono">{pa}</span>
-              </p>
+
+              {isMobile ? (
+                <div className="grid grid-cols-4 gap-2">
+                  {APPS.map((app) => (
+                    <button
+                      key={app.label}
+                      type="button"
+                      onClick={() => launch(isAndroid ? androidIntent(app.pkg) : upiLink)}
+                      className={`flex flex-col items-center justify-center gap-1.5 h-[72px] rounded-2xl
+                                  ${app.bg} ${app.border} ${app.text}
+                                  text-[11px] font-semibold active:scale-95 transition-transform
+                                  touch-manipulation select-none shadow-sm`}
+                    >
+                      {app.logo}
+                      {app.label}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-2 py-1">
+                  <div className="bg-white p-2 rounded-xl shadow-sm">
+                    <QRCodeSVG value={upiLink} size={130} level="M" />
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Scan with any UPI app to pay ₹{amt}</p>
+                </div>
+              )}
+
+              <div className="mt-2 text-center">
+                <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2.5 py-0.5 rounded-full">
+                  ₹{amt} → {settleModal.payeeName}
+                </span>
+              </div>
             </div>
           );
         })()}
 
-        {/* ── Post-UPI: share proof ── */}
+                {/* ── Post-UPI: share proof ── */}
         {upiPaid && (
           <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200
                           dark:border-emerald-800/30 rounded-xl px-4 py-3 mb-3 space-y-2">
