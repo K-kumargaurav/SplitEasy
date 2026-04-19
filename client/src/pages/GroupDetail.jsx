@@ -497,7 +497,9 @@ export default function GroupDetail() {
   const shareReceipt = async () => {
     const canvas = drawReceipt(settleAmount, settleModal.payeeName, group?.name || "");
     canvas.toBlob(async (blob) => {
+      if (!blob) { toast.error("Could not generate receipt"); return; }
       const file = new File([blob], "payment-receipt.png", { type: "image/png" });
+      // Try Web Share API with file first
       try {
         if (navigator.canShare?.({ files: [file] })) {
           await navigator.share({
@@ -505,20 +507,21 @@ export default function GroupDetail() {
             text: `Paid \u20B9${settleAmount} to ${settleModal.payeeName}`,
             files: [file],
           });
-        } else if (navigator.share) {
-          await navigator.share({
-            title: "Payment Receipt",
-            text: `Paid \u20B9${settleAmount} to ${settleModal.payeeName} · ${group?.name}`,
-          });
-        } else {
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url; a.download = "payment-receipt.png"; a.click();
-          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          return;
         }
       } catch (err) {
-        if (err.name !== "AbortError") toast.error("Could not share receipt");
+        if (err.name === "AbortError") return;
       }
+      // Fallback: download directly
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "payment-receipt.png";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast.success("Receipt downloaded");
     }, "image/png");
   };
 
@@ -2098,26 +2101,26 @@ export default function GroupDetail() {
               ✓ Payment initiated — share proof or send a settlement request below.
             </p>
             {/* Share actual UPI screenshot from gallery */}
+            <label
+              htmlFor="upi-screenshot-input"
+              className="flex items-center gap-2 w-full h-10 cursor-pointer
+                         bg-white dark:bg-[#2c2c2e] border border-emerald-200
+                         dark:border-emerald-800/40 text-emerald-700 dark:text-emerald-400
+                         text-sm font-semibold rounded-xl transition touch-manipulation select-none"
+            >
+              <svg className="w-4 h-4 ml-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round"
+                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+              Share UPI Screenshot
+            </label>
             <input
-              ref={upiScreenshotRef}
+              id="upi-screenshot-input"
               type="file"
               accept="image/*"
               className="hidden"
               onChange={shareUpiScreenshot}
             />
-            <button
-              onClick={() => upiScreenshotRef.current?.click()}
-              className="flex items-center gap-2 w-full h-10
-                         bg-white dark:bg-[#2c2c2e] border border-emerald-200
-                         dark:border-emerald-800/40 text-emerald-700 dark:text-emerald-400
-                         text-sm font-semibold rounded-xl transition touch-manipulation select-none"
-            >
-              <svg className="w-4 h-4 ml-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round"
-                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-              </svg>
-              Share UPI Screenshot
-            </button>
             {/* Share SplitEasy-generated receipt */}
             <button
               onClick={shareReceipt}
