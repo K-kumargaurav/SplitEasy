@@ -392,7 +392,7 @@ export default function GroupDetail() {
         category:     newExpense.category,
         customSplits:
           newExpense.splitType === "custom"
-            ? customSplits.map((s) => ({ userId: s.userId, share: parseFloat(s.share) }))
+            ? customSplits.map((s) => ({ userId: s.userId, share: parseFloat(s.share), paid: s.paid }))
             : undefined,
       });
       // Prepend new expense, then refresh only balances in background
@@ -546,7 +546,7 @@ export default function GroupDetail() {
     setNewExpense((prev) => ({ ...prev, splitType: type }));
     if (type === "custom") {
       setCustomSplits(
-        group?.members?.map((m) => ({ userId: m._id, name: m.name, share: "" })) ?? []
+        group?.members?.map((m) => ({ userId: m._id, name: m.name, share: "", paid: false })) ?? []
       );
     } else {
       setCustomSplits([]);
@@ -1707,30 +1707,54 @@ export default function GroupDetail() {
                 {t("gd.amount_per_member")}
               </label>
               <div className="space-y-2">
-                {customSplits.map((split, idx) => (
-                  <div key={split.userId} className="flex items-center gap-3">
-                    <Avatar name={split.name} size={32} />
-                    <span className="text-sm text-gray-700 font-medium w-24 truncate">
-                      {split.name}
-                    </span>
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      placeholder="0"
-                      value={split.share}
-                      onChange={(e) => {
-                        const updated = [...customSplits];
-                        updated[idx].share = e.target.value;
-                        setCustomSplits(updated);
-                      }}
-                      className="flex-1 h-10 bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
-                                 dark:border-[#48484a] rounded-xl px-3 text-base
-                                 text-gray-900 dark:text-white
-                                 focus:outline-none focus:border-emerald-500
-                                 focus:ring-2 focus:ring-emerald-500/20 transition"
-                    />
-                  </div>
-                ))}
+                {customSplits.map((split, idx) => {
+                  const isPayer = split.userId === newExpense.paidById;
+                  const isPaid  = isPayer || split.paid;
+                  return (
+                    <div key={split.userId} className="flex items-center gap-2">
+                      <Avatar name={split.name} size={32} />
+                      <span className="text-sm text-gray-700 dark:text-gray-200 font-medium w-20 truncate shrink-0">
+                        {split.name}
+                      </span>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        placeholder="0"
+                        value={split.share}
+                        onChange={(e) => {
+                          const updated = [...customSplits];
+                          updated[idx].share = e.target.value;
+                          setCustomSplits(updated);
+                        }}
+                        className="flex-1 h-10 bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
+                                   dark:border-[#48484a] rounded-xl px-3 text-base
+                                   text-gray-900 dark:text-white
+                                   focus:outline-none focus:border-emerald-500
+                                   focus:ring-2 focus:ring-emerald-500/20 transition"
+                      />
+                      {/* Paid checkbox */}
+                      <button
+                        type="button"
+                        disabled={isPayer}
+                        onClick={() => {
+                          const updated = [...customSplits];
+                          updated[idx].paid = !updated[idx].paid;
+                          setCustomSplits(updated);
+                        }}
+                        title={isPayer ? "Payer — always paid" : isPaid ? "Mark as unpaid" : "Mark as paid"}
+                        className={`shrink-0 w-8 h-8 rounded-xl flex items-center justify-center
+                                    transition touch-manipulation select-none border
+                                    ${isPaid
+                                      ? "bg-emerald-500 border-emerald-500 text-white"
+                                      : "bg-gray-50 dark:bg-[#3a3a3c] border-gray-200 dark:border-[#48484a] text-gray-300"}`}
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
+                        </svg>
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
               <div className="mt-2 flex justify-between text-sm">
                 <span className="text-gray-400">{t("gd.total")}</span>

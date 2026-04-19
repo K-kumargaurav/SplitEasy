@@ -129,7 +129,7 @@ const addExpense = async (req, res) => {
       splitBetween = customSplits.map((s) => ({
         user: s.userId,
         share: Math.round(s.share * 100),
-        paid: s.userId === payer,
+        paid: s.userId === payer || s.paid === true,
       }));
     }
 
