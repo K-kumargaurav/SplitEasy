@@ -20,7 +20,7 @@ const translations = {
 
     // Groups tab
     "groups.title":       "Your Groups",
-    "groups.new":         "+ New",
+    "groups.new":         "New Group",
     "groups.empty_title": "No groups yet",
     "groups.empty_sub":   "Create one and start splitting",
     "groups.create":      "+ Create Group",
@@ -268,7 +268,7 @@ const translations = {
 
     // Groups tab
     "groups.title":       "आपके समूह",
-    "groups.new":         "+ नया",
+    "groups.new":         "नया ग्रुप",
     "groups.empty_title": "अभी कोई समूह नहीं",
     "groups.empty_sub":   "एक बनाएं और बिल बांटना शुरू करें",
     "groups.create":      "+ समूह बनाएं",
