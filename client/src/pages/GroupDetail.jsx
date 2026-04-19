@@ -2029,7 +2029,7 @@ export default function GroupDetail() {
         {/* ── UPI pay button ── */}
         {settleModal?.upiId && (
           <a
-            href={`upi://pay?pa=${encodeURIComponent(settleModal.upiId)}&pn=${encodeURIComponent(settleModal.payeeName)}&am=${parseFloat(settleAmount || 0).toFixed(2)}&tn=${encodeURIComponent((group?.name || "") + " settlement")}&cu=INR`}
+            href={`upi://pay?pa=${settleModal.upiId.trim()}&pn=${encodeURIComponent(settleModal.payeeName)}&am=${parseFloat(settleAmount || 0).toFixed(2)}&tn=${encodeURIComponent("SplitEasy settlement")}&cu=INR`}
             onClick={() => setUpiPaid(true)}
             className="flex items-center justify-center gap-2 w-full h-12 mb-3
                        bg-violet-500 active:bg-violet-600 text-white font-semibold
@@ -2045,7 +2045,7 @@ export default function GroupDetail() {
         {/* ── Pay via Mobile Number ── */}
         {settleModal?.phoneNumber && (
           <a
-            href={`upi://pay?pa=${encodeURIComponent(settleModal.phoneNumber + "@upi")}&pn=${encodeURIComponent(settleModal.payeeName)}&am=${parseFloat(settleAmount || 0).toFixed(2)}&tn=${encodeURIComponent((group?.name || "") + " settlement")}&cu=INR`}
+            href={`upi://pay?pa=${settleModal.phoneNumber.trim()}@upi&pn=${encodeURIComponent(settleModal.payeeName)}&am=${parseFloat(settleAmount || 0).toFixed(2)}&tn=${encodeURIComponent("SplitEasy settlement")}&cu=INR`}
             onClick={() => setUpiPaid(true)}
             className="flex items-center justify-center gap-2 w-full h-12 mb-3
                        bg-blue-500 active:bg-blue-600 text-white font-semibold
