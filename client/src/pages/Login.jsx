@@ -79,6 +79,9 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError]               = useState("");
   const [loading, setLoading]           = useState(false);
+  const [step, setStep]                 = useState("form");
+  const [otp, setOtp]                   = useState("");
+  const [pendingEmail, setPendingEmail] = useState("");
 
   const { login }  = useAuth();
   const navigate   = useNavigate();
@@ -103,15 +106,30 @@ export default function Login() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setLoading(true);
     setError("");
     try {
-      const { data } = await api.post("/auth/login", form);
+      await api.post("/auth/send-login-otp", form);
+      setPendingEmail(form.email.toLowerCase().trim());
+      setStep("otp");
+      setOtp("");
+    } catch (err) {
+      setError(err.response?.data?.message || "Login failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const { data } = await api.post("/auth/verify-login-otp", { email: pendingEmail, otp });
       login(data.user, data.token);
       navigate("/dashboard");
     } catch (err) {
-      setError(err.response?.data?.message || "Login failed. Please try again.");
+      setError(err.response?.data?.message || "Verification failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -161,89 +179,152 @@ export default function Login() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          <InputField
-            label={t("login.email")}
-            type="email"
-            placeholder="you@example.com"
-            value={form.email}
-            onChange={handleChange("email")}
-            autoComplete="email"
-            autoFocus
-            required
-          />
+        {step === "otp" ? (
+          <div className="p-5 space-y-5">
+            <div className="text-center">
+              <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20
+                              flex items-center justify-center">
+                <span className="text-2xl">✉️</span>
+              </div>
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Check your email</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                We sent a 6-digit code to<br />
+                <span className="font-semibold text-gray-700 dark:text-gray-200">{pendingEmail}</span>
+              </p>
+            </div>
 
-          {/* Password with show/hide toggle */}
-          <div>
-            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-              {t("login.password")}
-            </label>
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                placeholder={showPassword ? t("login.password") : "••••••••"}
-                value={form.password}
-                onChange={handleChange("password")}
-                autoComplete="current-password"
-                required
-                className="w-full h-12 bg-white dark:bg-[#3a3a3c] border border-gray-200
-                           dark:border-[#48484a] rounded-xl px-4 pr-12 text-base
-                           text-gray-900 dark:text-white placeholder-gray-400
-                           dark:placeholder-gray-500
-                           focus:outline-none focus:border-emerald-500 focus:ring-2
-                           focus:ring-emerald-500/20 transition"
-              />
+            <input
+              type="tel"
+              inputMode="numeric"
+              pattern="[0-9]{6}"
+              maxLength={6}
+              placeholder="000000"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              autoFocus
+              className="w-full h-14 bg-white dark:bg-[#3a3a3c] border border-gray-200
+                         dark:border-[#48484a] rounded-xl px-4 text-2xl font-bold
+                         tracking-widest text-center text-gray-900 dark:text-white
+                         focus:outline-none focus:border-emerald-500 focus:ring-2
+                         focus:ring-emerald-500/20 transition"
+            />
+
+            <button
+              type="button"
+              onClick={handleVerifyOtp}
+              disabled={loading || otp.length !== 6}
+              className="w-full h-12 bg-emerald-500 active:bg-emerald-600 text-white
+                         rounded-xl text-base font-semibold transition
+                         disabled:opacity-50 select-none touch-manipulation"
+            >
+              {loading ? "Verifying…" : "Verify & Sign In"}
+            </button>
+
+            <div className="flex items-center justify-between text-sm">
               <button
                 type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2
-                           text-gray-400 hover:text-gray-600 dark:hover:text-gray-300
-                           transition p-1"
+                onClick={() => { setStep("form"); setOtp(""); setError(""); }}
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition"
               >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                ← Back
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={loading}
+                className="text-emerald-600 font-medium disabled:opacity-50 transition"
+              >
+                Resend OTP
               </button>
             </div>
           </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full h-12 bg-emerald-500 active:bg-emerald-600 text-white
-                       rounded-xl text-base font-semibold transition
-                       disabled:opacity-50 disabled:cursor-not-allowed select-none
-                       touch-manipulation"
-          >
-            {loading ? t("login.signing_in") : t("login.sign_in")}
-          </button>
-
-          {/* Divider */}
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-gray-200 dark:bg-[#3a3a3c]" />
-            <span className="text-xs text-gray-400 select-none">{t("login.or")}</span>
-            <div className="flex-1 h-px bg-gray-200 dark:bg-[#3a3a3c]" />
-          </div>
-
-          {/* Google login */}
-          <div className={`flex justify-center ${loading ? "pointer-events-none opacity-50" : ""}`}>
-            <GoogleLogin
-              onSuccess={handleGoogleSuccess}
-              onError={() => setError(t("login.google_failed"))}
-              theme="outline"
-              shape="rectangular"
-              size="large"
-              width="100%"
-              text="signin_with"
+        ) : (
+          <form onSubmit={handleSubmit} className="p-5 space-y-4">
+            <InputField
+              label={t("login.email")}
+              type="email"
+              placeholder="you@example.com"
+              value={form.email}
+              onChange={handleChange("email")}
+              autoComplete="email"
+              autoFocus
+              required
             />
-          </div>
-        </form>
 
-        <div className="border-t border-gray-100 dark:border-[#3a3a3c] px-5 py-4
-                        text-center text-sm text-gray-500 dark:text-gray-400">
-          {t("login.no_account")}{" "}
-          <Link to="/register" className="text-emerald-600 font-semibold">
-            {t("login.register")}
-          </Link>
-        </div>
+            {/* Password with show/hide toggle */}
+            <div>
+              <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+                {t("login.password")}
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder={showPassword ? t("login.password") : "••••••••"}
+                  value={form.password}
+                  onChange={handleChange("password")}
+                  autoComplete="current-password"
+                  required
+                  className="w-full h-12 bg-white dark:bg-[#3a3a3c] border border-gray-200
+                             dark:border-[#48484a] rounded-xl px-4 pr-12 text-base
+                             text-gray-900 dark:text-white placeholder-gray-400
+                             dark:placeholder-gray-500
+                             focus:outline-none focus:border-emerald-500 focus:ring-2
+                             focus:ring-emerald-500/20 transition"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2
+                             text-gray-400 hover:text-gray-600 dark:hover:text-gray-300
+                             transition p-1"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full h-12 bg-emerald-500 active:bg-emerald-600 text-white
+                         rounded-xl text-base font-semibold transition
+                         disabled:opacity-50 disabled:cursor-not-allowed select-none
+                         touch-manipulation"
+            >
+              {loading ? "Sending OTP…" : t("login.sign_in")}
+            </button>
+
+            {/* Divider */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-gray-200 dark:bg-[#3a3a3c]" />
+              <span className="text-xs text-gray-400 select-none">{t("login.or")}</span>
+              <div className="flex-1 h-px bg-gray-200 dark:bg-[#3a3a3c]" />
+            </div>
+
+            {/* Google login */}
+            <div className={`flex justify-center ${loading ? "pointer-events-none opacity-50" : ""}`}>
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={() => setError(t("login.google_failed"))}
+                theme="outline"
+                shape="rectangular"
+                size="large"
+                width="100%"
+                text="signin_with"
+              />
+            </div>
+          </form>
+        )}
+
+        {step === "form" && (
+          <div className="border-t border-gray-100 dark:border-[#3a3a3c] px-5 py-4
+                          text-center text-sm text-gray-500 dark:text-gray-400">
+            {t("login.no_account")}{" "}
+            <Link to="/register" className="text-emerald-600 font-semibold">
+              {t("login.register")}
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );

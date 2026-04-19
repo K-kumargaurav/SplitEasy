@@ -89,6 +89,9 @@ const userSchema = new mongoose.Schema(
     ],
     passwordOtp:       { type: String },
     passwordOtpExpiry: { type: Date },
+    emailVerified:     { type: Boolean, default: false },
+    emailOtp:          { type: String },
+    emailOtpExpiry:    { type: Date },
   },
   { timestamps: true },
 );

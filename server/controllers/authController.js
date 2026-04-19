@@ -1,8 +1,10 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 const { OAuth2Client } = require("google-auth-library");
 const { body, validationResult } = require("express-validator");
+const sendEmail = require("../utils/sendEmail");
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -163,4 +165,170 @@ const googleAuth = async (req, res) => {
   }
 };
 
-module.exports = { register, login, googleAuth, registerValidation, loginValidation };
+const otpEmailHtml = (otp, subject) => `
+  <div style="font-family:sans-serif;max-width:400px;margin:auto">
+    <h2 style="color:#10b981">SplitEasy</h2>
+    <p>${subject}</p>
+    <div style="font-size:32px;font-weight:bold;letter-spacing:8px;
+                color:#111;background:#f3f4f6;padding:16px 24px;
+                border-radius:12px;text-align:center;margin:16px 0">
+      ${otp}
+    </div>
+    <p style="color:#6b7280;font-size:13px">
+      Expires in <strong>10 minutes</strong>. If you didn't request this, ignore this email.
+    </p>
+  </div>
+`;
+
+// @POST /api/auth/send-register-otp
+const sendRegisterOtp = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty())
+    return res.status(400).json({ message: errors.array()[0].msg });
+
+  try {
+    const { name, password, country } = req.body;
+    const email = req.body.email.toLowerCase().trim();
+
+    let user = await User.findOne({ email });
+    if (user && user.emailVerified)
+      return res.status(400).json({ message: "Email already registered" });
+
+    const otp = String(crypto.randomInt(100000, 999999));
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+
+    if (!user) {
+      const salt = await bcrypt.genSalt(12);
+      const hashedPassword = await bcrypt.hash(password, salt);
+      const username = await generateUsername(name);
+      user = await User.create({
+        name: name.trim(), email, password: hashedPassword, username,
+        country: country || "India",
+        emailVerified: false, emailOtp: otp, emailOtpExpiry: otpExpiry,
+      });
+    } else {
+      user.emailOtp = otp;
+      user.emailOtpExpiry = otpExpiry;
+      await user.save();
+    }
+
+    await sendEmail({
+      to: email,
+      subject: "SplitEasy — Verify your email",
+      html: otpEmailHtml(otp, "Your one-time code to verify your email:"),
+    });
+
+    res.json({ message: "OTP sent to your email" });
+  } catch (err) {
+    console.error("sendRegisterOtp:", err);
+    res.status(500).json({ message: "Failed to send OTP" });
+  }
+};
+
+// @POST /api/auth/verify-register-otp
+const verifyRegisterOtp = async (req, res) => {
+  try {
+    const { email: rawEmail, otp } = req.body;
+    if (!rawEmail || !otp)
+      return res.status(400).json({ message: "Email and OTP are required" });
+
+    const email = rawEmail.toLowerCase().trim();
+    const user = await User.findOne({ email, emailVerified: false });
+    if (!user)
+      return res.status(400).json({ message: "No pending verification found" });
+
+    if (!user.emailOtp || user.emailOtp !== String(otp).trim())
+      return res.status(400).json({ message: "Invalid OTP" });
+    if (!user.emailOtpExpiry || user.emailOtpExpiry < new Date())
+      return res.status(400).json({ message: "OTP has expired. Please request a new one." });
+
+    user.emailVerified = true;
+    user.emailOtp = undefined;
+    user.emailOtpExpiry = undefined;
+    user.isOnline = true;
+    await user.save();
+
+    res.status(201).json({
+      message: "Email verified successfully",
+      token: generateToken(user._id),
+      user: formatUser(user),
+    });
+  } catch (err) {
+    console.error("verifyRegisterOtp:", err);
+    res.status(500).json({ message: "Verification failed" });
+  }
+};
+
+// @POST /api/auth/send-login-otp
+const sendLoginOtp = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty())
+    return res.status(400).json({ message: "Invalid email or password" });
+
+  try {
+    const email = req.body.email.toLowerCase().trim();
+    const { password } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user || !user.password)
+      return res.status(400).json({ message: "Invalid email or password" });
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch)
+      return res.status(400).json({ message: "Invalid email or password" });
+
+    const otp = String(crypto.randomInt(100000, 999999));
+    user.emailOtp = otp;
+    user.emailOtpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+
+    await sendEmail({
+      to: email,
+      subject: "SplitEasy — Login OTP",
+      html: otpEmailHtml(otp, "Your one-time code to sign in:"),
+    });
+
+    res.json({ message: "OTP sent to your email" });
+  } catch (err) {
+    console.error("sendLoginOtp:", err);
+    res.status(500).json({ message: "Failed to send OTP" });
+  }
+};
+
+// @POST /api/auth/verify-login-otp
+const verifyLoginOtp = async (req, res) => {
+  try {
+    const { email: rawEmail, otp } = req.body;
+    if (!rawEmail || !otp)
+      return res.status(400).json({ message: "Email and OTP are required" });
+
+    const email = rawEmail.toLowerCase().trim();
+    const user = await User.findOne({ email });
+    if (!user)
+      return res.status(400).json({ message: "Invalid email or password" });
+
+    if (!user.emailOtp || user.emailOtp !== String(otp).trim())
+      return res.status(400).json({ message: "Invalid OTP" });
+    if (!user.emailOtpExpiry || user.emailOtpExpiry < new Date())
+      return res.status(400).json({ message: "OTP has expired. Please request a new one." });
+
+    user.emailOtp = undefined;
+    user.emailOtpExpiry = undefined;
+    user.isOnline = true;
+    await user.save();
+
+    res.json({
+      message: "Login successful",
+      token: generateToken(user._id),
+      user: formatUser(user),
+    });
+  } catch (err) {
+    console.error("verifyLoginOtp:", err);
+    res.status(500).json({ message: "Login failed" });
+  }
+};
+
+module.exports = {
+  register, login, googleAuth, registerValidation, loginValidation,
+  sendRegisterOtp, verifyRegisterOtp, sendLoginOtp, verifyLoginOtp,
+};

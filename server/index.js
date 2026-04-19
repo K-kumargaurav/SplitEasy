@@ -86,6 +86,8 @@ const groupRoutes         = require("./routes/groupRoutes");
 const settlementRoutes    = require("./routes/settlementRoutes");
 const pendingActionRoutes = require("./routes/pendingActionRoutes");
 
+app.use("/api/auth/send-register-otp", otpLimiter);
+app.use("/api/auth/send-login-otp",    otpLimiter);
 app.use("/api/auth",    authLimiter, authRoutes);
 app.use("/api/users/send-password-otp", otpLimiter);
 app.use("/api/users",   userRoutes);
@@ -139,6 +141,7 @@ mongoose
 
     const User = require("./models/User");
     await User.updateMany({ country: { $exists: false } }, { $set: { country: "India" } });
+    await User.updateMany({ emailVerified: { $exists: false } }, { $set: { emailVerified: true } });
 
     /* Migrate embedded notifications → Notification collection */
     const Notification = require("./models/Notification");
