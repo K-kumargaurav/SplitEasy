@@ -1,54 +1,77 @@
 import { useState } from "react";
 
 function evalExpr(raw) {
-  const s = raw.replace(/×/g, "*").replace(/÷/g, "/");
-  if (!/^[\d\s+\-*/.]+$/.test(s)) return null;
+  const s = raw
+    .replace(/×/g, "*")
+    .replace(/÷/g, "/")
+    .replace(/(\d+(?:\.\d+)?)%/g, "($1/100)");
+  if (!/^[\d\s+\-*/().]+$/.test(s)) return null;
   try {
     // eslint-disable-next-line no-new-func
     const r = new Function(`return (${s})`)();
-    return Number.isFinite(r) && r > 0 ? parseFloat(r.toFixed(2)) : null;
+    return Number.isFinite(r) && r >= 0 ? parseFloat(r.toFixed(2)) : null;
   } catch {
     return null;
   }
 }
 
+// Returns formatted display string for a number
+function fmt(n) {
+  if (n === null || n === undefined) return null;
+  const s = String(n);
+  // Add thousands separators only if no decimal in progress
+  if (!s.includes(".") && s.length > 3) {
+    return parseFloat(s).toLocaleString("en-IN", { maximumFractionDigits: 2 });
+  }
+  return s;
+}
+
 const KEYS = [
-  { k: "C",  col: 1, row: 1 },
-  { k: "⌫",  col: 2, row: 1 },
-  { k: "÷",  col: 3, row: 1 },
-  { k: "×",  col: 4, row: 1 },
-  { k: "7",  col: 1, row: 2 },
-  { k: "8",  col: 2, row: 2 },
-  { k: "9",  col: 3, row: 2 },
-  { k: "-",  col: 4, row: 2 },
-  { k: "4",  col: 1, row: 3 },
-  { k: "5",  col: 2, row: 3 },
-  { k: "6",  col: 3, row: 3 },
-  { k: "+",  col: 4, row: 3 },
-  { k: "1",  col: 1, row: 4 },
-  { k: "2",  col: 2, row: 4 },
-  { k: "3",  col: 3, row: 4 },
-  { k: "=",  col: 4, row: 4, rowSpan: 2 },
-  { k: "0",  col: 1, row: 5, colSpan: 2 },
-  { k: ".",  col: 3, row: 5 },
+  { k: "C",   col: 1, row: 1 },
+  { k: "⌫",   col: 2, row: 1 },
+  { k: "%",   col: 3, row: 1 },
+  { k: "÷",   col: 4, row: 1 },
+  { k: "7",   col: 1, row: 2 },
+  { k: "8",   col: 2, row: 2 },
+  { k: "9",   col: 3, row: 2 },
+  { k: "×",   col: 4, row: 2 },
+  { k: "4",   col: 1, row: 3 },
+  { k: "5",   col: 2, row: 3 },
+  { k: "6",   col: 3, row: 3 },
+  { k: "−",   col: 4, row: 3 },
+  { k: "1",   col: 1, row: 4 },
+  { k: "2",   col: 2, row: 4 },
+  { k: "3",   col: 3, row: 4 },
+  { k: "+",   col: 4, row: 4 },
+  { k: "0",   col: 1, row: 5, colSpan: 2 },
+  { k: ".",   col: 3, row: 5 },
+  { k: "=",   col: 4, row: 5 },
 ];
 
 function btnClass(k) {
   if (k === "=")
-    return "bg-emerald-500 hover:bg-emerald-600 text-white text-2xl font-bold";
-  if (["+", "-", "×", "÷"].includes(k))
-    return "bg-amber-50 dark:bg-amber-900/30 text-amber-500 dark:text-amber-400 text-xl font-semibold";
-  if (["C", "⌫"].includes(k))
-    return "bg-red-50 dark:bg-red-900/20 text-red-500 text-xl font-semibold";
-  return "bg-gray-100 dark:bg-[#2c2c2e] text-gray-900 dark:text-white text-xl font-semibold";
+    return "bg-emerald-500 active:bg-emerald-600 text-white text-2xl font-bold shadow-sm shadow-emerald-200 dark:shadow-emerald-900";
+  if (["+", "−", "×", "÷"].includes(k))
+    return "bg-amber-50 dark:bg-amber-950/60 text-amber-500 dark:text-amber-400 text-xl font-bold border border-amber-100 dark:border-amber-900/40";
+  if (k === "%")
+    return "bg-blue-50 dark:bg-blue-950/60 text-blue-500 dark:text-blue-400 text-lg font-bold border border-blue-100 dark:border-blue-900/40";
+  if (k === "C")
+    return "bg-red-50 dark:bg-red-950/40 text-red-500 dark:text-red-400 text-lg font-bold border border-red-100 dark:border-red-900/30";
+  if (k === "⌫")
+    return "bg-red-50 dark:bg-red-950/40 text-red-500 dark:text-red-400 text-xl font-bold border border-red-100 dark:border-red-900/30";
+  return "bg-white dark:bg-[#2c2c2e] text-gray-900 dark:text-white text-xl font-semibold border border-gray-100 dark:border-[#3a3a3c]";
 }
 
 export default function CalcInput({ value, onChange, placeholder = "0.00" }) {
-  const [open, setOpen] = useState(false);
-  const [expr, setExpr] = useState("");
+  const [open,    setOpen]    = useState(false);
+  const [expr,    setExpr]    = useState("");
+  const [flash,   setFlash]   = useState(false); // result flash animation
 
-  const hasOp = /[+\-×÷]/.test(expr);
+  const hasOp   = /[+\-×÷%]/.test(expr);
   const lastNum = expr.split(/[+\-×÷]/).pop() ?? "";
+
+  // Live result — only shown when expression has an operator
+  const liveResult = hasOp ? evalExpr(expr) : null;
 
   const press = (key) => {
     switch (key) {
@@ -62,23 +85,28 @@ export default function CalcInput({ value, onChange, placeholder = "0.00" }) {
       case "=": {
         const result = hasOp
           ? evalExpr(expr)
-          : expr
-          ? parseFloat(expr)
-          : null;
+          : expr ? parseFloat(expr) : null;
         if (result !== null) {
           const s = String(result);
           setExpr(s);
           onChange(s);
+          // Brief flash to confirm
+          setFlash(true);
+          setTimeout(() => setFlash(false), 300);
         }
-        setOpen(false);
+        setTimeout(() => setOpen(false), 160);
         return;
       }
       case "+":
-      case "-":
+      case "−":
       case "×":
       case "÷":
         if (!expr || /[+\-×÷]$/.test(expr)) return;
         setExpr((p) => p + key);
+        return;
+      case "%":
+        if (!expr || /[+\-×÷%]$/.test(expr)) return;
+        setExpr((p) => p + "%");
         return;
       case ".":
         if (lastNum.includes(".")) return;
@@ -91,17 +119,23 @@ export default function CalcInput({ value, onChange, placeholder = "0.00" }) {
 
   const handleOpen = () => {
     setExpr(value || "");
+    setFlash(false);
     setOpen(true);
   };
 
   const handleClose = () => {
+    // If no operator, commit whatever was typed
     if (!hasOp && expr) onChange(expr);
     setOpen(false);
   };
 
+  // What to show in the large display area
+  const displayMain  = expr || "0";
+  const displaySmall = hasOp ? expr : null;
+
   return (
     <>
-      {/* Input row: text field + calculator icon button */}
+      {/* Input row */}
       <div className="flex items-center gap-2">
         <input
           type="number"
@@ -118,7 +152,7 @@ export default function CalcInput({ value, onChange, placeholder = "0.00" }) {
         <button
           type="button"
           onClick={handleOpen}
-          title="Open calculator"
+          title="Calculator"
           className="h-12 w-12 shrink-0 flex items-center justify-center
                      bg-gray-100 dark:bg-[#3a3a3c] border border-gray-200
                      dark:border-[#48484a] rounded-xl text-gray-500 dark:text-gray-400
@@ -140,28 +174,50 @@ export default function CalcInput({ value, onChange, placeholder = "0.00" }) {
         </button>
       </div>
 
-      {/* Calculator overlay */}
+      {/* Calculator sheet */}
       {open && (
         <div
-          className="fixed inset-0 z-50 flex flex-col justify-end bg-black/40"
+          className="fixed inset-0 z-50 flex flex-col justify-end bg-black/50 backdrop-blur-sm"
           onPointerDown={handleClose}
         >
           <div
-            className="bg-white dark:bg-[#1c1c1e] rounded-t-3xl shadow-2xl px-4 pt-4"
-            style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
+            className="bg-[#f2f2f7] dark:bg-[#1c1c1e] rounded-t-3xl shadow-2xl px-3 pt-3"
+            style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
             onPointerDown={(e) => e.stopPropagation()}
           >
-            {/* Handle bar */}
-            <div className="w-10 h-1 bg-gray-200 dark:bg-gray-700 rounded-full mx-auto mb-4" />
+            {/* Handle */}
+            <div className="w-9 h-1 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-3" />
 
-            {/* Display */}
-            <div className="px-2 pb-4 border-b border-gray-100 dark:border-gray-800 mb-3 text-right">
-              <p className="text-sm text-gray-400 font-mono min-h-5">
-                {hasOp ? expr : ""}
+            {/* Display card */}
+            <div className={`rounded-2xl px-5 py-4 mb-3 text-right transition-colors
+                            ${flash
+                              ? "bg-emerald-50 dark:bg-emerald-900/30"
+                              : "bg-white dark:bg-[#2c2c2e]"}`}>
+
+              {/* Expression line */}
+              <p className="text-sm text-gray-400 dark:text-gray-500 font-mono truncate min-h-5 leading-5">
+                {displaySmall || "\u00A0"}
               </p>
-              <p className="text-4xl font-bold text-gray-900 dark:text-white font-mono mt-1 leading-none">
-                {expr || "0"}
+
+              {/* Main number */}
+              <p className={`font-mono font-bold leading-tight mt-0.5 transition-all
+                             ${liveResult !== null ? "text-2xl text-gray-400 dark:text-gray-500" : "text-4xl text-gray-900 dark:text-white"}`}>
+                {displayMain}
               </p>
+
+              {/* Live result preview */}
+              {liveResult !== null && (
+                <p className="text-4xl font-bold font-mono text-emerald-500 dark:text-emerald-400 mt-0.5 leading-tight">
+                  = {fmt(liveResult) ?? liveResult}
+                </p>
+              )}
+
+              {/* "pending" indicator when expression is incomplete */}
+              {hasOp && liveResult === null && (
+                <p className="text-4xl font-bold font-mono text-gray-300 dark:text-gray-600 mt-0.5 leading-tight">
+                  …
+                </p>
+              )}
             </div>
 
             {/* Keypad */}
@@ -169,7 +225,7 @@ export default function CalcInput({ value, onChange, placeholder = "0.00" }) {
               className="grid gap-2"
               style={{
                 gridTemplateColumns: "repeat(4, 1fr)",
-                gridTemplateRows: "repeat(5, 3.25rem)",
+                gridTemplateRows:    "repeat(5, 3.5rem)",
               }}
             >
               {KEYS.map(({ k, col, row, colSpan = 1, rowSpan = 1 }) => (
