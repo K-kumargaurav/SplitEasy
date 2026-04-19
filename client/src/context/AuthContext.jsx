@@ -22,6 +22,8 @@ export const AuthProvider = ({ children }) => {
                 }
             } catch {
                 localStorage.removeItem("user");
+                localStorage.removeItem("token");
+                setToken(null);
             }
         }
         setLoading(false);

@@ -284,6 +284,7 @@ export default function Dashboard() {
     const onSettlementUpdate = (data) => {
       fetchPendingSettlements();
       fetchDebts();
+      setActivity([]); // Force re-fetch so activity tab reflects new status
       const msg = data.status === "accepted" ? "Settlement accepted!" : "Settlement rejected";
       sendBrowserNotif("SplitEasy", msg);
       toast(data.status === "accepted" ? "✅ Settlement accepted!" : "❌ Settlement rejected");
@@ -519,8 +520,8 @@ export default function Dashboard() {
     try {
       await api.put(`/settlements/${settlementId}/respond`, { status });
       setPendingSettlements((prev) => prev.filter((s) => s._id !== settlementId));
+      setActivity([]); // Force re-fetch so status updates on next activity tab visit
       toast.success(status === "accepted" ? "Settlement confirmed!" : "Settlement rejected");
-      // Refresh debts since a settlement was accepted
       if (status === "accepted") fetchDebts();
     } catch (err) {
       setError(err.response?.data?.message || "Failed to respond");
@@ -576,12 +577,12 @@ export default function Dashboard() {
             {pendingSettlements.map((s) => (
               <div key={s._id} className="p-4">
                 <div className="flex items-center gap-3 mb-3">
-                  <Avatar name={s.paidBy.name} size={40} />
+                  <Avatar name={s.paidBy?.name ?? "?"} size={40} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                      {s.paidBy.name} {t("sr.wants_to_pay")}
+                      {s.paidBy?.name ?? "Unknown"} {t("sr.wants_to_pay")}
                     </p>
-                    <p className="text-xs text-gray-400 truncate">{s.group.name}</p>
+                    <p className="text-xs text-gray-400 truncate">{s.group?.name ?? "Deleted group"}</p>
                   </div>
                   <span className="text-base font-bold text-emerald-600 shrink-0">
                     ₹{(s.amount / 100).toFixed(2)}
@@ -835,8 +836,8 @@ export default function Dashboard() {
           <SectionHeader title={t("activity.recent")} />
           <ListGroup>
             {activity.map((s) => {
-              const isSender   = s.paidBy._id === user?._id;
-              const otherParty = isSender ? s.paidTo.name : s.paidBy.name;
+              const isSender   = s.paidBy?._id === user?._id;
+              const otherParty = isSender ? (s.paidTo?.name ?? "Unknown") : (s.paidBy?.name ?? "Unknown");
               const statusColor =
                 s.status === "accepted" ? "text-emerald-600 bg-emerald-50"
                 : s.status === "rejected" ? "text-red-500 bg-red-50"
@@ -849,7 +850,7 @@ export default function Dashboard() {
               return (
                 <button
                   key={s._id}
-                  onClick={() => navigate(`/groups/${s.group._id}`)}
+                  onClick={() => s.group?._id && navigate(`/groups/${s.group._id}`)}
                   className="w-full flex items-center gap-3 px-4 py-3.5
                              active:bg-gray-50 transition text-left
                              touch-manipulation select-none"
@@ -865,7 +866,7 @@ export default function Dashboard() {
                     <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
                       {isSender ? `You → ${otherParty}` : `${otherParty} → You`}
                     </p>
-                    <p className="text-xs text-gray-400 truncate">{s.group.name}</p>
+                    <p className="text-xs text-gray-400 truncate">{s.group?.name ?? "Deleted group"}</p>
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                       {new Date(s.updatedAt).toLocaleDateString("en-IN", {
                         day: "numeric", month: "short", year: "numeric",

@@ -23,6 +23,7 @@ const getProfile = async (req, res) => {
       country: user.country || "India",
       profilePublic: user.profilePublic ?? false,
       upiId: user.upiId || "",
+      phoneNumber: user.phoneNumber || "",
       friends: user.friends,
     });
   } catch (err) {
@@ -66,11 +67,12 @@ const getUserById = async (req, res) => {
 // @PUT /api/users/profile
 const updateProfile = async (req, res) => {
   try {
-    const { name, bio, profilePhoto, isOnline, country, upiId } = req.body;
+    const { name, bio, profilePhoto, isOnline, country, upiId, phoneNumber } = req.body;
     const user = await User.findById(req.user._id);
-    if (name  !== undefined) user.name  = String(name).trim().slice(0, 60);
-    if (bio   !== undefined) user.bio   = String(bio).slice(0, 150);
-    if (upiId !== undefined) user.upiId = String(upiId).trim().slice(0, 50);
+    if (name        !== undefined) user.name        = String(name).trim().slice(0, 60);
+    if (bio         !== undefined) user.bio         = String(bio).slice(0, 150);
+    if (upiId       !== undefined) user.upiId       = String(upiId).trim().slice(0, 50);
+    if (phoneNumber !== undefined) user.phoneNumber = String(phoneNumber).trim().replace(/\D/g, "").slice(0, 10);
     if (profilePhoto !== undefined) {
       // Only allow https URLs or empty string
       if (profilePhoto === "" || /^https:\/\/.+/.test(profilePhoto))
@@ -96,6 +98,7 @@ const updateProfile = async (req, res) => {
       country: user.country || "India",
       profilePublic: user.profilePublic ?? false,
       upiId: user.upiId || "",
+      phoneNumber: user.phoneNumber || "",
     });
   } catch (err) {
     res.status(500).json({ message: "Server error" });

@@ -86,11 +86,12 @@ const groupRoutes         = require("./routes/groupRoutes");
 const settlementRoutes    = require("./routes/settlementRoutes");
 const pendingActionRoutes = require("./routes/pendingActionRoutes");
 
-app.use("/api/auth/send-register-otp", otpLimiter);
-app.use("/api/auth/send-login-otp",    otpLimiter);
-app.use("/api/auth/forgot-password",   otpLimiter);
+app.use("/api/auth/send-register-otp",  otpLimiter);
+app.use("/api/auth/send-login-otp",     otpLimiter);
+app.use("/api/auth/forgot-password",    otpLimiter);
 app.use("/api/auth",    authLimiter, authRoutes);
 app.use("/api/users/send-password-otp", otpLimiter);
+app.use("/api/users/change-password",   otpLimiter);
 app.use("/api/users",   userRoutes);
 app.use("/api/groups",  groupRoutes);
 app.use("/api",         settlementRoutes);

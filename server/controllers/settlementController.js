@@ -31,6 +31,11 @@ const settleUp = async (req, res) => {
   try {
     const { paidToId, amount } = req.body;
 
+    if (!paidToId || !amount || isNaN(amount) || Number(amount) <= 0)
+      return res.status(400).json({ message: "paidToId and a positive amount are required" });
+    if (paidToId === req.user._id.toString())
+      return res.status(400).json({ message: "You cannot settle with yourself" });
+
     const group = await Group.findById(req.params.id);
 
     if (!group) {
@@ -40,6 +45,9 @@ const settleUp = async (req, res) => {
     if (!group.members.some((m) => m.toString() === req.user._id.toString())) {
       return res.status(403).json({ message: "Not a member" });
     }
+
+    if (!group.members.some((m) => m.toString() === paidToId))
+      return res.status(400).json({ message: "Recipient is not a group member" });
 
     const settlement = await Settlement.create({
       group: req.params.id,
@@ -63,7 +71,7 @@ const settleUp = async (req, res) => {
 
     res.status(201).json({
       message: "Settlement request sent",
-      settlement: settlement.toObject(),
+      settlement: { ...settlement.toObject(), amount: settlement.amount / 100 },
     });
   } catch (error) {
     res.status(500).json({ message: "Server error" });

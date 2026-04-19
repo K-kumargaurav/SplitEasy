@@ -83,8 +83,8 @@ const checkResolution = (action) => {
     if (rejections > 0)          return "rejected";
     if (approvals === total)     return "approved";
   } else if (action.type === "remove_member") {
-    // Simple majority
-    const majority = Math.ceil(total / 2);
+    // Strict majority (more than half)
+    const majority = Math.floor(total / 2) + 1;
     if (approvals  >= majority)              return "approved";
     if (rejections >  total - majority)      return "rejected";
   }
