@@ -1735,9 +1735,9 @@ export default function GroupDetail() {
                   const isPayer = split.userId === newExpense.paidById;
                   const isPaid  = isPayer || split.paid;
                   return (
-                    <div key={split.userId} className="flex items-center gap-2">
+                    <div key={split.userId} className="flex items-center gap-2 w-full min-w-0">
                       <Avatar name={split.name} size={32} />
-                      <span className="text-sm text-gray-700 dark:text-gray-200 font-medium w-20 truncate shrink-0">
+                      <span className="text-sm text-gray-700 dark:text-gray-200 font-medium w-14 truncate shrink-0">
                         {split.name}
                       </span>
                       <input
@@ -1750,7 +1750,7 @@ export default function GroupDetail() {
                           updated[idx].share = e.target.value;
                           setCustomSplits(updated);
                         }}
-                        className="flex-1 h-10 bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
+                        className="flex-1 min-w-0 h-10 bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
                                    dark:border-[#48484a] rounded-xl px-3 text-base
                                    text-gray-900 dark:text-white
                                    focus:outline-none focus:border-emerald-500
