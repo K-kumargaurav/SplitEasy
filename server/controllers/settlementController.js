@@ -167,9 +167,10 @@ const getPendingSettlements = async (req, res) => {
       status: "pending",
     })
       .populate("paidBy", "name email")
-      .populate("group", "name");
+      .populate("group", "name")
+      .lean();
 
-    res.json(settlements);
+    res.json(settlements.map((s) => ({ ...s, amount: s.amount / 100 })));
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }

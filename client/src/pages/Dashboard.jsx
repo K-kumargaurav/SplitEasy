@@ -605,7 +605,7 @@ export default function Dashboard() {
                     <p className="text-xs text-gray-400 truncate">{s.group?.name ?? "Deleted group"}</p>
                   </div>
                   <span className="text-base font-bold text-emerald-600 shrink-0">
-                    ₹{(s.amount / 100).toFixed(2)}
+                    ₹{Number(s.amount ?? 0).toFixed(2)}
                   </span>
                 </div>
                 <div className="flex gap-2">

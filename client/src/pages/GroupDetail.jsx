@@ -1050,8 +1050,8 @@ export default function GroupDetail() {
         {pendingActions.length > 0 && (() => {
           const myActions = pendingActions.filter((a) =>
             a.type !== "expense_edit" &&
-            a.requiredVoters.some((v) => (v._id || v).toString() === user?._id) &&
-            !a.votes.some((v) => (v.user?._id || v.user).toString() === user?._id)
+            a.requiredVoters.some((v) => (v._id || v)?.toString() === user?._id) &&
+            !a.votes.some((v) => (v.user?._id || v.user)?.toString() === user?._id)
           );
           if (myActions.length === 0) return null;
           return (
@@ -1287,7 +1287,7 @@ export default function GroupDetail() {
                             <button
                               onClick={async () => {
                                 if (!window.confirm(t("gd.confirm_delete"))) return;
-                                const snapshot = expenses;
+                                const snapshot = [...expenses];
                                 setExpenses((prev) => prev.filter((e) => e._id !== expense._id));
                                 try {
                                   await api.delete(`/groups/${id}/expenses/${expense._id}`);
