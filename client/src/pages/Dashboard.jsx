@@ -658,8 +658,13 @@ export default function Dashboard() {
           action={
             <button
               onClick={() => { setError(""); setShowCreateForm(true); }}
-              className="text-sm text-emerald-600 font-semibold touch-manipulation select-none"
+              className="flex items-center gap-1.5 h-8 px-3 bg-emerald-500
+                         active:bg-emerald-600 text-white text-xs font-semibold
+                         rounded-full shadow-sm touch-manipulation select-none transition"
             >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
               {t("groups.new")}
             </button>
           }
