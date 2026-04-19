@@ -238,6 +238,9 @@ export default function Dashboard() {
   const [bioText,            setBioText]            = useState("");
   const [editingUpi,         setEditingUpi]         = useState(false);
   const [upiText,            setUpiText]            = useState("");
+  const [editingPhone,       setEditingPhone]       = useState(false);
+  const [phoneText,          setPhoneText]          = useState("");
+  const [phoneError,         setPhoneError]         = useState("");
   const [profileSaving,      setProfileSaving]      = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [pwStep,             setPwStep]             = useState("send"); // "send" | "verify"
@@ -457,6 +460,23 @@ export default function Dashboard() {
       setEditingUpi(false);
       toast.success("UPI ID saved");
     } catch { toast.error("Failed to save UPI ID"); }
+    finally { setProfileSaving(false); }
+  };
+
+  const handlePhoneSave = async () => {
+    const digits = phoneText.replace(/\D/g, "");
+    if (digits && !/^[6-9]\d{9}$/.test(digits)) {
+      setPhoneError("Enter a valid 10-digit Indian mobile number");
+      return;
+    }
+    setPhoneError("");
+    setProfileSaving(true);
+    try {
+      const { data } = await api.put("/users/profile", { phoneNumber: digits });
+      setProfileData((p) => ({ ...p, phoneNumber: data.phoneNumber }));
+      setEditingPhone(false);
+      toast.success("Phone number saved");
+    } catch { toast.error("Failed to save phone number"); }
     finally { setProfileSaving(false); }
   };
 
@@ -1062,58 +1082,110 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* ── UPI ID ── */}
-        <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm px-4 py-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-              UPI ID
-            </span>
-            {!editingUpi && (
-              <button
-                onClick={() => { setEditingUpi(true); setUpiText(profileData?.upiId || ""); }}
-                className="text-xs text-emerald-600 font-semibold touch-manipulation"
-              >
-                {profileData?.upiId ? "Edit" : "Add"}
-              </button>
+        {/* ── Payment Details ── */}
+        <div className="bg-white dark:bg-[#2c2c2e] rounded-2xl shadow-sm px-4 py-4 space-y-4">
+          <div>
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">Payment Details</p>
+            <p className="text-xs text-gray-400 mt-0.5">Used to pay and receive money when settling expenses</p>
+          </div>
+
+          {/* UPI ID */}
+          <div className="border-t border-gray-100 dark:border-[#3a3a3c] pt-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">UPI ID</span>
+              {!editingUpi && (
+                <button
+                  onClick={() => { setEditingUpi(true); setUpiText(profileData?.upiId || ""); }}
+                  className="text-xs text-emerald-600 font-semibold touch-manipulation"
+                >
+                  {profileData?.upiId ? "Edit" : "Add"}
+                </button>
+              )}
+            </div>
+            {editingUpi ? (
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  value={upiText}
+                  onChange={(e) => setUpiText(e.target.value.slice(0, 50))}
+                  placeholder="yourname@upi"
+                  className="w-full h-10 bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
+                             dark:border-[#48484a] rounded-xl px-3 text-sm
+                             text-gray-900 dark:text-white placeholder-gray-400
+                             focus:outline-none focus:border-emerald-500
+                             focus:ring-2 focus:ring-emerald-500/20 transition"
+                />
+                <div className="flex gap-2">
+                  <button onClick={handleUpiSave} disabled={profileSaving}
+                    className="flex-1 h-10 bg-emerald-500 active:bg-emerald-600 text-white
+                               text-sm font-semibold rounded-xl transition touch-manipulation">
+                    {profileSaving ? "Saving…" : "Save"}
+                  </button>
+                  <button onClick={() => setEditingUpi(false)}
+                    className="flex-1 h-10 bg-gray-100 dark:bg-[#3a3a3c] text-gray-700
+                               dark:text-gray-300 text-sm font-semibold rounded-xl
+                               transition touch-manipulation">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className={`text-sm font-mono ${profileData?.upiId ? "text-gray-800 dark:text-gray-200" : "text-gray-400 italic"}`}>
+                {profileData?.upiId || "Not set"}
+              </p>
             )}
           </div>
-          {editingUpi ? (
-            <div className="space-y-2">
-              <input
-                type="text"
-                value={upiText}
-                onChange={(e) => setUpiText(e.target.value.slice(0, 50))}
-                placeholder="yourname@upi"
-                className="w-full h-10 bg-gray-50 dark:bg-[#3a3a3c] border border-gray-200
-                           dark:border-[#48484a] rounded-xl px-3 text-sm
-                           text-gray-900 dark:text-white placeholder-gray-400
-                           focus:outline-none focus:border-emerald-500
-                           focus:ring-2 focus:ring-emerald-500/20 transition"
-              />
-              <div className="flex gap-2">
+
+          {/* Phone Number */}
+          <div className="border-t border-gray-100 dark:border-[#3a3a3c] pt-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Mobile Number</span>
+              {!editingPhone && (
                 <button
-                  onClick={handleUpiSave}
-                  disabled={profileSaving}
-                  className="flex-1 h-10 bg-emerald-500 active:bg-emerald-600 text-white
-                             text-sm font-semibold rounded-xl transition touch-manipulation"
+                  onClick={() => { setEditingPhone(true); setPhoneText(profileData?.phoneNumber || ""); setPhoneError(""); }}
+                  className="text-xs text-emerald-600 font-semibold touch-manipulation"
                 >
-                  {profileSaving ? "Saving…" : "Save"}
+                  {profileData?.phoneNumber ? "Edit" : "Add"}
                 </button>
-                <button
-                  onClick={() => setEditingUpi(false)}
-                  className="flex-1 h-10 bg-gray-100 dark:bg-[#3a3a3c] text-gray-700
-                             dark:text-gray-300 text-sm font-semibold rounded-xl
-                             transition touch-manipulation"
-                >
-                  Cancel
-                </button>
-              </div>
+              )}
             </div>
-          ) : (
-            <p className={`text-sm font-mono ${profileData?.upiId ? "text-gray-800 dark:text-gray-200" : "text-gray-400 italic"}`}>
-              {profileData?.upiId || "Not set — members settling with you will need this"}
-            </p>
-          )}
+            {editingPhone ? (
+              <div className="space-y-2">
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={10}
+                  value={phoneText}
+                  onChange={(e) => { setPhoneText(e.target.value.replace(/\D/g, "").slice(0, 10)); setPhoneError(""); }}
+                  placeholder="9876543210"
+                  className={`w-full h-10 bg-gray-50 dark:bg-[#3a3a3c] border rounded-xl px-3 text-sm
+                              text-gray-900 dark:text-white placeholder-gray-400
+                              focus:outline-none focus:ring-2 transition
+                              ${phoneError
+                                ? "border-red-400 focus:border-red-400 focus:ring-red-400/20"
+                                : "border-gray-200 dark:border-[#48484a] focus:border-emerald-500 focus:ring-emerald-500/20"}`}
+                />
+                {phoneError && <p className="text-xs text-red-500">{phoneError}</p>}
+                <div className="flex gap-2">
+                  <button onClick={handlePhoneSave} disabled={profileSaving}
+                    className="flex-1 h-10 bg-emerald-500 active:bg-emerald-600 text-white
+                               text-sm font-semibold rounded-xl transition touch-manipulation">
+                    {profileSaving ? "Saving…" : "Save"}
+                  </button>
+                  <button onClick={() => { setEditingPhone(false); setPhoneError(""); }}
+                    className="flex-1 h-10 bg-gray-100 dark:bg-[#3a3a3c] text-gray-700
+                               dark:text-gray-300 text-sm font-semibold rounded-xl
+                               transition touch-manipulation">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className={`text-sm font-mono ${profileData?.phoneNumber ? "text-gray-800 dark:text-gray-200" : "text-gray-400 italic"}`}>
+                {profileData?.phoneNumber ? `+91 ${profileData.phoneNumber}` : "Not set"}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* ── Privacy toggle ── */}
