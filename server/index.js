@@ -16,8 +16,26 @@ const PORT = process.env.PORT || 5000;
 /* ── Compression ── */
 app.use(compression());
 
+/* ── Force HTTPS in production (Render terminates SSL at proxy, sends X-Forwarded-Proto) ── */
+if (process.env.NODE_ENV === "production") {
+  app.use((req, res, next) => {
+    if (req.headers["x-forwarded-proto"] !== "https") {
+      return res.redirect(301, `https://${req.headers.host}${req.url}`);
+    }
+    next();
+  });
+}
+
 /* ── Security headers ── */
-app.use(helmet());
+app.use(
+  helmet({
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true,
+    },
+  })
+);
 
 /* ── CORS ── */
 app.use(
