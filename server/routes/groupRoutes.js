@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require("../middleware/authMiddleware");
+const idempotency = require("../middleware/idempotency");
 const {
   createGroup,
   getGroups,
@@ -20,7 +21,7 @@ const {
   deleteGroup,
 } = require('../controllers/groupController');
 
-router.post("/", protect, createGroup);
+router.post("/", protect, idempotency, createGroup);
 router.get("/", protect, getGroups);
 router.get('/invites/pending', protect, getPendingInvites);
 router.get("/:id", protect, getGroupById);
@@ -28,7 +29,7 @@ router.put("/:id", protect, updateGroup);
 router.delete("/:id", protect, deleteGroup);
 router.delete("/:id/leave", protect, leaveGroup);
 router.delete("/:id/members/:memberId", protect, removeMember);
-router.post("/:id/expenses", protect, addExpense);
+router.post("/:id/expenses", protect, idempotency, addExpense);
 router.get("/:id/expenses", protect, getGroupExpenses);
 router.put("/:id/expenses/:expenseId", protect, editExpense);
 router.delete("/:id/expenses/:expenseId", protect, deleteExpense);

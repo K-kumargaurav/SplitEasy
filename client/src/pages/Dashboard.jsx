@@ -554,11 +554,12 @@ export default function Dashboard() {
     if (creatingGroup) return;
     setError("");
     setCreatingGroup(true);
+    const idempotencyKey = crypto.randomUUID();
     try {
       await api.post("/groups", {
         ...newGroup,
         members: selectedMembers.map((m) => m._id),
-      });
+      }, { headers: { "X-Idempotency-Key": idempotencyKey } });
       setNewGroup({ name: "", description: "" });
       setSelectedMembers([]);
       setShowCreateForm(false);

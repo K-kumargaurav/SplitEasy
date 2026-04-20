@@ -367,8 +367,10 @@ export default function GroupDetail() {
     }
   };
 
+  const [addingExpense, setAddingExpense] = useState(false);
   const handleAddExpense = async (e) => {
     e.preventDefault();
+    if (addingExpense) return;
     setError("");
 
     const amt = parseFloat(newExpense.amount);
@@ -380,6 +382,9 @@ export default function GroupDetail() {
       if (Math.abs(total - amt) > 0.01)
         return setError(`Splits must add up to ₹${amt}. Currently ₹${total}`);
     }
+
+    setAddingExpense(true);
+    const idempotencyKey = crypto.randomUUID();
 
     // Close form immediately for instant feel
     setNewExpense({ description: "", amount: "", splitType: "equal", paidById: "", category: "other" });
@@ -397,13 +402,14 @@ export default function GroupDetail() {
           newExpense.splitType === "custom"
             ? customSplits.map((s) => ({ userId: s.userId, share: parseFloat(s.share), paid: s.paid }))
             : undefined,
-      });
-      // Prepend new expense, then refresh only balances in background
+      }, { headers: { "X-Idempotency-Key": idempotencyKey } });
       setExpenses((prev) => [data.expense, ...prev]);
       api.get(`/groups/${id}/balances`).then((r) => setBalances(r.data)).catch(() => {});
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to add expense");
       fetchAll();
+    } finally {
+      setAddingExpense(false);
     }
   };
 
