@@ -384,7 +384,7 @@ export default function GroupDetail() {
     }
 
     setAddingExpense(true);
-    const idempotencyKey = crypto.randomUUID();
+    const idempotencyKey = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
 
     // Close form immediately for instant feel
     setNewExpense({ description: "", amount: "", splitType: "equal", paidById: "", category: "other" });

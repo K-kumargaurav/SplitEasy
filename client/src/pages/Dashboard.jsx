@@ -554,7 +554,7 @@ export default function Dashboard() {
     if (creatingGroup) return;
     setError("");
     setCreatingGroup(true);
-    const idempotencyKey = crypto.randomUUID();
+    const idempotencyKey = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
     try {
       await api.post("/groups", {
         ...newGroup,
