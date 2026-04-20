@@ -2079,7 +2079,15 @@ export default function GroupDetail() {
 
           const launch = (url) => {
             setUpiPaid(true);
-            window.open(url, isCapacitorNative ? "_system" : "_blank");
+            if (isCapacitorNative) {
+              window.open(url, "_system");
+            } else {
+              const a = document.createElement("a");
+              a.href = url;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+            }
           };
 
           const APPS = [
