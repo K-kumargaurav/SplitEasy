@@ -2069,14 +2069,11 @@ export default function GroupDetail() {
             return `intent://pay?${q}#Intent;scheme=upi;package=${pkg};S.browser_fallback_url=${fb};end;`;
           };
 
-          // Use anchor click — more reliable than window.location.href for custom schemes
+          const isCapacitorNative = !!window.Capacitor?.isNativePlatform?.();
+
           const launch = (url) => {
             setUpiPaid(true);
-            const a = document.createElement("a");
-            a.href = url;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            window.open(url, isCapacitorNative ? "_system" : "_blank");
           };
 
           const APPS = [
@@ -2152,9 +2149,9 @@ export default function GroupDetail() {
               {isMobile ? (
                 <>
                   {/* Primary: opens OS UPI chooser — most reliable */}
-                  <a
-                    href={upiLink}
-                    onClick={() => setUpiPaid(true)}
+                  <button
+                    type="button"
+                    onClick={() => launch(upiLink)}
                     className="flex items-center justify-center gap-2 w-full h-11 mb-2
                                bg-emerald-500 active:bg-emerald-600 text-white
                                font-semibold text-sm rounded-xl touch-manipulation select-none shadow-sm"
@@ -2163,7 +2160,7 @@ export default function GroupDetail() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
                     </svg>
                     Pay ₹{amt} · Open UPI App
-                  </a>
+                  </button>
                   {/* Specific app shortcuts */}
                   <p className="text-[10px] text-gray-400 text-center mb-1.5">or choose an app</p>
                   <div className="grid grid-cols-4 gap-2">
